@@ -3,19 +3,24 @@ import { Avatar } from '../../avatar/Avatar';
 import { ABILITIES } from '../../content/abilities';
 import { CLASSES } from '../../content/classes';
 import { formatRoll } from '../../engine/dice';
-import { abilityMod, proficiencyBonus, slotsFor } from '../../engine/rules';
+import { proficiencyBonus, slotsFor } from '../../engine/rules';
 import { evalCondition, findItem, interpolate } from '../../engine/quest/eval';
 import { EventFeed } from '../EventFeed';
+import { RollPrompt } from '../RollPrompt';
+import { setSetting } from '../store';
+import { abilityName, resourceMax, skillName, SKILL_ABILITY } from '../../engine/rules';
+import { describeEventText } from '../describe';
+import { displayState, playbackSettled } from '../display';
+import { AbilityLabel } from '../abilityInfo';
 import { detectWebGL, mountFx, shouldEnableFx, type FxHandle } from '../../fx';
 import { em } from '../em';
-import { resourceMax } from '../../engine/rules';
 import { usableBonusActions } from '../../engine/combat';
 import type { Choice, ItemDef, Scene } from '../../engine/quest/types';
 import type { Hero, PendingOutcome } from '../../engine/model';
-import { abilityCost, classInfoLines, describeAbility } from '../format';
+import { abilityCost, abilityRows, classInfoLines, describeAbility, resourcePips } from '../format';
 import { questAssetUrl } from '../../quests/registry';
 import {
-  advancePlayback, dispatch, gotoScreen, setDrawer, startQuestById, useStore,
+  advancePlayback, dispatch, getStore, gotoScreen, manualRollPending, retryCheckpoint, setDrawer, startQuestById, useStore,
 } from '../store';
 import { DeathScreen, EndingScreen } from './meta';
 
@@ -37,34 +42,79 @@ function Bar({ value, max, label }: { value: number; max: number; label: string 
   );
 }
 
-function StatusBar({ hero }: { hero: Hero }) {
+const HeartIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+    <path d="M12 21s-8-5.5-10-10.5C.7 6 3 3 6.5 3 9 3 11 5 12 6.5 13 5 15 3 17.5 3 21 3 23.3 6 22 10.5 20 15.5 12 21 12 21z"/>
+  </svg>
+);
+const SparkleIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor">
+    <path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6zM19 15l.9 2.6 2.1.7-2.1.7L19 21l-.9-2.6-2.1-.7 2.1-.7z"/>
+  </svg>
+);
+const pips = (left: number, max: number) => '●'.repeat(left) + '○'.repeat(Math.max(0, max - left));
+
+function StatusBar(props: { hero: Hero }) {
+  const hero = useStore((st) => st) && (displayState(getStore().game, getStore().queue, getStore().ui.playback).hero ?? props.hero);
   const slots = slotsFor(hero.classId, hero.level);
+  const caster = slots.length > 0;
+  const resources = resourcePips(hero);
+  const lohMax = resourceMax(hero.classId, 'lay-on-hands', hero.abilities, hero.level);
+  const magicLabel = caster ? 'Spell slots' : 'Powers';
+  const magicAria = caster
+    ? `Spell slots: ${slots.map((m, i) => `${ord(i + 1)} level ${m - (hero.slotsUsed[i] ?? 0)} of ${m} left`).join(', ')}. Spells use a slot; cantrips are free; slots return after a long rest.`
+    : `Powers: ${resourcePips(hero).map((r) => `${r.name} ${r.left} of ${r.max} left`).join(', ')}`;
+  const autoRoll = useStore((st) => st.ui.settings.autoRoll);
   return (
     <header class="statusbar">
       <Avatar spec={hero.avatar} size={36} label="hero avatar" />
       <span><strong>{hero.name}</strong> · L{hero.level} {CLASSES[hero.classId].name}</span>
-      <Bar value={hero.hp} max={hero.maxHp} label="Hit points" />
-      {slots.length > 0 && (
-        <span class="slots" aria-label="spell slots">
-          {slots.map((m, i) => `${ord(i + 1)} ${m - (hero.slotsUsed[i] ?? 0)}/${m}`).join(' · ')}
-        </span>
-      )}
-      {Object.entries(hero.resources).map(([id, n]) => {
-        const def = CLASSES[hero.classId].resources[id];
-        const max = resourceMax(hero.classId, id, hero.abilities, hero.level);
-        return <span key={id} class="resource">{def?.name ?? id} {n}/{max}</span>;
-      })}
       <span class="gold">{hero.gold} gp</span>
+      <div class="vitals">
+        <span class="health" aria-label={`health: ${hero.hp} of ${hero.maxHp}`}>
+          <HeartIcon /> <b>Health</b> <Bar value={hero.hp} max={hero.maxHp} label="Hit points" />
+        </span>
+        {(caster || resources.length > 0) && (
+          <span class="magic" aria-label={magicAria} title={magicAria}>
+            <SparkleIcon /> <b>{magicLabel}</b>
+            {caster
+              ? slots.map((m, i) => {
+                  const left = m - (hero.slotsUsed[i] ?? 0);
+                  return <span key={i} class="pipgroup">{ord(i + 1)} <span class="pips">{pips(left, m)}</span></span>;
+                })
+              : resourcePips(hero).map((r) => (
+                  <span key={r.id} class="pipgroup"><span class="nowrap">{r.name}</span> <span class="pips">{pips(r.left, r.max)}</span></span>
+                ))}
+          </span>
+        )}
+        {hero.classId === 'paladin' && lohMax > 0 && (
+          <span class="loh" aria-label={`lay on hands: ${hero.resources['lay-on-hands'] ?? 0} of ${lohMax}`}
+            title="Lay on Hands pool">
+            LoH <span class="bar"><i style={{ width: `${((hero.resources['lay-on-hands'] ?? 0) / lohMax) * 100}%` }} /></span>
+          </span>
+        )}
+        {hero.classId === 'druid' && hero.level >= 2 && (
+          <span class="pipgroup" title="Wild Shape uses">Wild Shape <span class="pips">{pips(hero.resources['wild-shape'] ?? 0, resourceMax('druid', 'wild-shape', hero.abilities, hero.level))}</span></span>
+        )}
+        {hero.classId === 'bard' && (
+          <span class="pipgroup" title="Bardic Inspiration">Inspiration <span class="pips">{pips(hero.resources['inspiration'] ?? 0, resourceMax('bard', 'inspiration', hero.abilities, hero.level))}</span></span>
+        )}
+      </div>
+      <button class="switch" role="switch" aria-checked={autoRoll} title="Off: click Roll before each of your rolls"
+        onClick={() => setSetting('autoRoll', !autoRoll)}>
+        <span class="track"><span class="knob" /></span>
+        <span class="dim">Auto-roll dice: {autoRoll ? 'On' : 'Off'}</span>
+      </button>
     </header>
   );
 }
 
-function reqReason(c: NonNullable<Choice['requires']>): string {
+function reqReason(c: NonNullable<Choice['requires']>) {
   if ('gold' in c && c.gold.gte) return `needs ${c.gold.gte} gp`;
   if ('hasItem' in c) return `needs ${String(c.hasItem).replace(/-/g, ' ')}`;
   if ('class' in c) return `${c.class.join('/')} only`;
   if ('level' in c) return `level ${(c.level as { gte?: number }).gte}+`;
-  if ('ability' in c) return `${c.ability} ${(c as { gte: number }).gte}+`;
+  if ('ability' in c) return <>needs <AbilityLabel id={(c as { ability: import('../../engine/quest/types').AbilityId }).ability} /> {(c as { gte: number }).gte}+</>;
   if ('flag' in c) return 'not yet';
   return 'requirements unmet';
 }
@@ -78,7 +128,7 @@ function PendingCard({ pending, quest }: { pending: PendingOutcome; quest: impor
     <div class="pending card" role="status">
       {pending.kind === 'check' && (
         <>
-          <p><strong>{pending.label} (DC {pending.check.dc}):</strong> {formatRoll(pending.roll)}
+          <p><strong>{pending.label} (difficulty {pending.check.dc}):</strong> {formatRoll(pending.roll)}
             {pending.inspired && ` +${pending.inspirationBonus} inspiration`}</p>
           <p class={pending.success ? 'success' : 'failure'}>{pending.success ? 'Success!' : 'Failure.'}</p>
           {inspireOk && (
@@ -202,7 +252,8 @@ function hpText(hp: number, max: number) {
 }
 
 function EnemyCard({ id, targeted, onTarget }: { id: string; targeted: boolean; onTarget: () => void }) {
-  const e = useStore((s) => s.game.combat!.enemies.find((x) => x.id === id))!;
+  const st = useStore((st) => st);
+  const e = displayState(st.game, st.queue, st.ui.playback).combat!.enemies.find((x) => x.id === id)!;
   const scene = useStore((s) => {
     const q = s.quest;
     return q?.enemies?.[e.defId];
@@ -213,7 +264,10 @@ function EnemyCard({ id, targeted, onTarget }: { id: string; targeted: boolean; 
       <div class="row">
         <Avatar spec={spec} size={36} label={e.name} />
         <strong>{e.name}</strong>
-        <span class="dim">AC {e.ac}</span>
+        <span class="dim armour" title="Armour: the total an attack must reach to hit">
+          <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 2l8 3v6c0 5-3.4 9.6-8 11-4.6-1.4-8-6-8-11V5z"/></svg>
+          {' '}Armour {e.ac}
+        </span>
       </div>
       <Bar value={e.hp} max={e.maxHp} label={`${e.name} hit points`} />
       <span class="dim">{hpText(e.hp, e.maxHp)}</span>
@@ -229,8 +283,10 @@ function EnemyCard({ id, targeted, onTarget }: { id: string; targeted: boolean; 
 
 function CombatScreen() {
   const s = useStore((st) => st);
-  const combat = s.game.combat!;
-  const hero = s.game.hero!;
+  const shown = displayState(s.game, s.queue, s.ui.playback);
+  const combat = shown.combat!;
+  const hero = shown.hero!;
+  const settled = playbackSettled(s.queue, s.ui.playback, manualRollPending());
   const [target, setTarget] = useState<string | null>(null);
   const [smiteSlot, setSmiteSlot] = useState(0);
   const [slotPick, setSlotPick] = useState<Record<string, number>>({});
@@ -295,8 +351,22 @@ function CombatScreen() {
       </div>
       <div class="hero-conds dim">
         {hero.conditions.map((c) => <span key={c.name} class="cond">{c.name}</span>)}
-        {combat.beastHp > 0 && <span class="cond">beast HP {combat.beastHp}</span>}
+        {combat.beastHp > 0 && <span class="cond">beast health {combat.beastHp}</span>}
       </div>
+      {combat.result && settled && (
+        <div ref={(el) => el?.closest('.combat')?.querySelector('.feed')?.scrollTo({ top: 1e9 })} class={`result-banner ${combat.result}`} role="status">
+          <h3>{combat.result === 'victory' ? 'Victory!' : combat.result === 'fled' ? 'You escaped' : combat.result === 'defeat' ? 'Defeated…' : 'You have fallen'}</h3>
+          {combat.result === 'death' ? (
+            <>
+              <button class="btn-primary" onClick={() => retryCheckpoint()}>Retry from checkpoint</button>
+              <button onClick={() => gotoScreen('title')}>Return to title</button>
+            </>
+          ) : (
+            <button class="btn-primary" onClick={() => dispatch({ type: 'continue' })}>Continue</button>
+          )}
+        </div>
+      )}
+      {!combat.result && (
       <div class="actionbar" role="toolbar" aria-label="combat actions">
         <button disabled={playing || !actionOpen || !tgt} onClick={() => tgt && dispatch({ type: 'attack', targetId: tgt, ...(smiteSlot ? { smiteSlot } : {}) })}>
           <kbd>1</kbd> Attack
@@ -316,7 +386,11 @@ function CombatScreen() {
         {combat.canFlee && <button disabled={playing || !actionOpen} onClick={() => dispatch({ type: 'flee' })}><kbd>5</kbd> Flee</button>}
         <button disabled={playing} onClick={() => dispatch({ type: 'endTurn' })}><kbd>6</kbd> End Turn</button>
       </div>
-
+      )}
+      <RollPrompt onRoll={() => fxRef.current?.play({
+        type: 'roll', label: 'Roll', result: { expr: '1d20', rolls: [], total: 0, modifier: 0, nat20: false, nat1: false },
+        actor: 'hero', actorName: hero.name, purpose: 'attack', parts: [], finalTotal: 0,
+      }, {})} />
       <EventFeed queue={s.queue} playback={s.ui.playback} />
       {menu === 'abilities' && (
         <div class="card abilities-menu">
@@ -387,12 +461,12 @@ function CharacterSheet() {
       <h3>{hero.name}</h3>
       <p>Level {hero.level} {cls.name} · {hero.xp} XP · {hero.gold} gp</p>
       <ul>
-        {(['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const).map((ab) => (
-          <li key={ab}>{ab} {hero.abilities[ab]} ({abilityMod(hero.abilities[ab]) >= 0 ? '+' : ''}{abilityMod(hero.abilities[ab])})</li>
+        {abilityRows(hero).map((r) => (
+          <li key={r.id} class="ability-row"><AbilityLabel id={r.id} /><span class="ability-score">{r.score} ({r.mod >= 0 ? '+' : ''}{r.mod})</span></li>
         ))}
       </ul>
-      <p>Proficiency +{prof} · Hit die d{cls.hitDie} · Saves {cls.saves.join(', ')}</p>
-      <p>Skills: {cls.skills.map((sk) => `${sk}${cls.expertise.includes(sk) ? ' (expertise)' : ''}`).join(', ')}</p>
+      <p>Proficiency +{prof} · Hit die (healing on rests): d{cls.hitDie} · Saving throws: {cls.saves.map((ab, i) => <span key={ab}>{i > 0 && ', '}<AbilityLabel id={ab} /></span>)}</p>
+      <p>Skills: {cls.skills.map((sk) => `${skillName(sk)} (${abilityName(SKILL_ABILITY[sk])})${cls.expertise.includes(sk) ? ' (expertise)' : ''}`).join(', ')}</p>
       <h4>Abilities</h4>
       <ul class="ability-list">
         {classInfoLines(hero.classId, hero).map((l, i) => <li key={i}>{l}</li>)}
@@ -437,7 +511,7 @@ function LogPanel() {
   return (
     <div class="drawer-body log">
       <h3>Log</h3>
-      <ul>{shown.slice().reverse().map((l, i) => <li key={i}>{l.text}</li>)}</ul>
+      <ul>{shown.slice().reverse().map((l, i) => <li key={i}>{describeEventText(l.event)}</li>)}</ul>
     </div>
   );
 }
@@ -457,12 +531,13 @@ function LevelUpModal() {
         {needsAsi && (
           <div>
             <p>Ability Score Improvement: +2 to one score, or +1 to two.</p>
-            {(['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'] as const).map((ab) => (
-              <label key={ab} class="row">
-                {ab} ({hero.abilities[ab]})
-                <select value={asi[ab] ?? 0} onChange={(e) => setAsi({ ...asi, [ab]: Number(e.currentTarget.value) })}>
+            {abilityRows(hero).map((r) => (
+              <label key={r.id} class="row">
+                <AbilityLabel id={r.id} /> ({r.score})
+                <select value={asi[r.id] ?? 0} onChange={(e) => setAsi({ ...asi, [r.id]: Number(e.currentTarget.value) })}>
                   <option value={0}>—</option><option value={1}>+1</option><option value={2}>+2</option>
                 </select>
+                <input type="hidden" value={r.id} />
               </label>
             ))}
           </div>
@@ -477,15 +552,17 @@ export function AdventureScreen() {
   const s = useStore((st) => st);
   const hero = s.game.hero;
   if (!hero) return <main class="screen"><p>No hero. <button onClick={() => gotoScreen('title')}>Title</button></p></main>;
-  if (s.game.status === 'dead') return <DeathScreen />;
-  if (s.game.status === 'questComplete' && s.game.quest && s.quest?.scenes[s.game.quest.sceneId]?.type === 'ending')
+  const settledTop = playbackSettled(s.queue, s.ui.playback, manualRollPending());
+  if (s.game.status === 'dead' && !s.game.combat) return <DeathScreen />; // in-combat death keeps the battle + banner
+  // death inside combat: keep the battle on screen; its banner offers retry/title
+  if (s.game.status === 'questComplete' && settledTop && s.game.quest && s.quest?.scenes[s.game.quest.sceneId]?.type === 'ending')
     return <EndingScreen />;
 
   const scene = s.quest && s.game.quest ? s.quest.scenes[s.game.quest.sceneId] : undefined;
   return (
     <div class="adventure">
       <StatusBar hero={hero} />
-      {s.game.status === 'inCombat' && s.game.combat ? (
+      {s.game.combat ? (
         <CombatScreen />
       ) : scene ? (
         <SceneView scene={scene} />

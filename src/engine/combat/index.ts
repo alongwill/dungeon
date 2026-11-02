@@ -1,10 +1,11 @@
 import { parseExpr } from '../dice/parse';
-import { fmtMod, roll, type RollResult } from '../dice/roll';
+import { roll, type RollResult } from '../dice/roll';
+import { rollEvent } from '../rolls';
 import { nextFloat } from '../dice/rng';
 import { ABILITIES, type AbilityDef } from '../../content/abilities';
 import { CLASSES } from '../../content/classes';
 import { ITEMS } from '../../content/items';
-import { abilityMod, computeAC, proficiencyBonus, slotsFor } from '../rules';
+import { abilityMod, abilityName, computeAC, proficiencyBonus, slotsFor } from '../rules';
 import { findItem, healHero, heroSave } from '../quest/eval';
 import type {
   AbilityId,
@@ -65,32 +66,36 @@ interface HeroAttackOutcome {
 function heroAttackRoll(
   s: GameState,
   target: CombatEnemy,
-  expr: string,
+  ability: AbilityId | 'attack',
   label: string,
   events: GameEvent[],
 ): HeroAttackOutcome {
   const hero = s.hero!;
   const combat = s.combat!;
   const mods = heroAttackMods(s, target);
-  const r = roll(expr, s.rng, mods);
-  s.rng = r.rng;
-  let bonus = 0;
+  const parts: { label: string; value: number }[] = [];
+  if (ability === 'attack') parts.push({ label: 'attack bonus', value: heroAttackBonus(s) });
+  else {
+    parts.push({ label: abilityName(ability), value: abilityMod(hero.abilities[ability]) });
+    parts.push({ label: 'proficiency', value: proficiencyBonus(hero.level) });
+  }
   if (heroCond(hero, 'blessed')) {
-    const b = roll('1d4', s.rng);
-    s.rng = b.rng;
-    bonus += b.result.total;
-    events.push({ type: 'roll', label: 'Bless', result: b.result });
+    const b = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'other', expr: '1d4', source: 'Bless' });
+    parts.push({ label: 'Bless (d4)', value: b.result.total });
   }
   if (heroCond(hero, 'inspired')) {
-    const b = roll('1d6', s.rng);
-    s.rng = b.rng;
-    bonus += b.result.total;
-    events.push({ type: 'roll', label: 'Inspiration', result: b.result });
+    const b = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'other', expr: '1d6', source: 'Inspiration' });
+    parts.push({ label: 'Inspiration (d6)', value: b.result.total });
     hero.conditions = hero.conditions.filter((c) => c.name !== 'inspired');
     events.push({ type: 'condition', target: 'hero', condition: 'inspired', on: false });
   }
-  const total = r.result.total + bonus;
-  events.push({ type: 'roll', label: `Attack: ${label}`, result: r.result });
+  const r = rollEvent(s, events, {
+    actor: 'hero', actorName: hero.name, purpose: 'attack', expr: '1d20',
+    advantage: mods.advantage, disadvantage: mods.disadvantage,
+    parts, source: label, targetName: target.name,
+    vs: { kind: 'armour', value: target.ac },
+  });
+  const total = r.total;
   // attacking ends hidden; Guiding Bolt's marked target grants advantage once
   if (heroCond(hero, 'hidden')) {
     hero.conditions = hero.conditions.filter((c) => c.name !== 'hidden');
@@ -99,8 +104,14 @@ function heroAttackRoll(
   if (combat.guidingBoltTarget === target.id) combat.guidingBoltTarget = null;
   const crit = r.result.nat20;
   const hit = crit || (!r.result.nat1 && total >= target.ac);
-  events.push({ type: 'narrate', text: `Total ${total} vs AC ${target.ac}: ${hit ? 'hit!' : 'miss'}` });
+  const ev = events[events.length - 1]!;
+  if (ev.type === 'roll') ev.outcome = crit ? 'crit' : hit ? 'hit' : 'miss';
   return { result: r.result, total, hit, crit, mods };
+}
+
+function heroAttackBonus(s: GameState): number {
+  const hero = s.hero!;
+  return abilityMod(hero.abilities.STR) + proficiencyBonus(hero.level);
 }
 
 function weaponOf(hero: Hero, quest: Quest | null): WeaponDef | undefined {
@@ -135,7 +146,7 @@ function damageEnemy(
 ): void {
   const applied = Math.max(0, applyType(amount, type, e));
   e.hp = Math.max(0, e.hp - applied);
-  events.push({ type: 'damage', target: e.id, amount: applied, damageType: type });
+  events.push({ type: 'damage', target: e.id, amount: applied, damageType: type, targetName: e.name, hpLeft: e.hp, hpMax: e.maxHp });
   if (e.hp === 0) {
     e.dead = true;
     events.push({ type: 'narrate', text: `${e.name} is defeated.` });
@@ -177,7 +188,7 @@ function damageHero(
     const absorbed = Math.min(combat.beastHp, amount);
     combat.beastHp -= absorbed;
     amount -= absorbed;
-    events.push({ type: 'damage', target: 'hero-beast', amount: absorbed });
+    events.push({ type: 'damage', target: 'hero-beast', amount: absorbed, targetName: 'beast form', hpLeft: combat.beastHp, hpMax: 11 });
     if (combat.beastHp === 0) {
       hero.conditions = hero.conditions.filter((c) => c.name !== 'wildshape');
       events.push({ type: 'condition', target: 'hero', condition: 'wildshape', on: false });
@@ -186,7 +197,7 @@ function damageHero(
     if (amount === 0) return;
   }
   hero.hp = Math.max(0, hero.hp - amount);
-  events.push({ type: 'damage', target: 'hero', amount, damageType: type });
+  events.push({ type: 'damage', target: 'hero', amount, damageType: type, targetName: hero.name, hpLeft: hero.hp, hpMax: hero.maxHp });
   if (hero.hp === 0) onHeroDown(s, events);
 }
 
@@ -271,18 +282,20 @@ export function startCombat(
   // initiative: d20 + DEX mod each; sort desc, ties → higher DEX → hero first.
   // surprise:'hero' pins the hero to the top of the order; surprise:'enemies'
   // keeps the hero's rolled slot but skips their round-1 turn (heroSurprised).
-  const dexMod = abilityMod(hero.abilities.DEX);
-  const { result: heroInit, rng } = roll(`1d20${fmtMod(dexMod)}`, s.rng);
-  s.rng = rng;
-  const heroScore = heroInit.total;
-  events.push({ type: 'roll', label: `Initiative: ${hero.name}`, result: heroInit });
+  const init = rollEvent(s, events, {
+    actor: 'hero', actorName: hero.name, purpose: 'initiative', expr: '1d20',
+    parts: [{ label: 'Dexterity', value: abilityMod(hero.abilities.DEX) }],
+    source: 'Initiative', label: `Initiative: ${hero.name}`,
+  });
+  const heroScore = init.total;
 
   const entries = enemies.map((e) => {
-    const r = roll(`1d20${fmtMod(abilityMod(e.dex))}`, s.rng);
-    s.rng = r.rng;
-    const score = r.result.total;
-    events.push({ type: 'roll', label: `Initiative: ${e.name}`, result: r.result });
-    return { id: e.id, score, dex: e.dex };
+    const r = rollEvent(s, events, {
+      actor: e.id, actorName: e.name, purpose: 'initiative', expr: '1d20',
+      parts: [{ label: 'Dexterity', value: abilityMod(e.dex) }],
+      source: 'Initiative', label: `Initiative: ${e.name}`,
+    });
+    return { id: e.id, score: r.total, dex: e.dex };
   });
   entries.push({ id: 'hero', score: heroScore, dex: hero.abilities.DEX });
   entries.sort(
@@ -391,29 +404,38 @@ function heroWeaponAttack(
   const combat = s.combat!;
   const wild = heroCond(hero, 'wildshape');
   const weapon = weaponOf(hero, quest);
-  const prof = proficiencyBonus(hero.level);
 
-  const mod = wild ? 4 : weaponAbilityMod(hero, weapon) + prof;
-  const atk = heroAttackRoll(s, target, `1d20${fmtMod(mod)}`, wild ? 'Bite' : weapon?.name ?? 'strike', events);
+  const atkAbility = wild ? 'attack' as const : (weapon?.ability === 'DEX' ? 'DEX' : 'STR') as AbilityId;
+  const atk = heroAttackRoll(s, target, wild ? 'attack' : atkAbility, wild ? 'Bite' : weapon?.name ?? 'strike', events);
   if (!atk.hit) return;
   const { crit, mods } = atk;
 
-  // damage
+  // damage — dice-only expr; the flat modifier is a labelled part
   let dmgExpr: string;
   let dmgType: DamageType | undefined;
   let flatBonus = 0;
   if (wild) {
-    dmgExpr = '2d4+2';
+    dmgExpr = '2d4';
     dmgType = 'piercing';
+    flatBonus = 2;
   } else {
-    dmgExpr = weapon?.damage ?? '1d4';
+    const wExpr = weapon?.damage ?? '1d4';
+    dmgExpr = wExpr.includes('+') || wExpr.includes('-') ? wExpr : wExpr;
     dmgType = weapon?.damageType;
     flatBonus = weaponAbilityMod(hero, weapon);
+    const m = dmgExpr.match(/^(.+?)([+-]\d+)?$/);
+    void m;
   }
-  const dmg = roll(`${dmgExpr}${flatBonus >= 0 ? '+' : ''}${flatBonus}`, s.rng, { critical: crit });
-  s.rng = dmg.rng;
-  events.push({ type: 'roll', label: crit ? 'Damage (critical!)' : 'Damage', result: dmg.result });
-  let total = dmg.result.total;
+  const diceOnly = dmgExpr.replace(/[+-]\d+$/, '');
+  const exprMod = dmgExpr.match(/([+-]\d+)$/)?.[1] ? parseInt(dmgExpr.match(/([+-]\d+)$/)![1]!, 10) : 0;
+  flatBonus += exprMod;
+  const dmg = rollEvent(s, events, {
+    actor: 'hero', actorName: hero.name, purpose: 'damage', expr: diceOnly,
+    critical: crit, source: wild ? 'Bite' : weapon?.name ?? 'strike', targetName: target.name,
+    parts: flatBonus ? [{ label: abilityName(atkAbility === 'attack' ? 'STR' : atkAbility), value: flatBonus }] : [],
+    label: crit ? 'Damage (critical!)' : 'Damage',
+  });
+  let total = dmg.total;
 
   // Sneak Attack
   if (
@@ -422,19 +444,15 @@ function heroWeaponAttack(
     (mods.advantage || (combat.round === 1 && combat.order.indexOf('hero') < combat.order.indexOf(target.id)))
   ) {
     const dice = Math.ceil(hero.level / 2);
-    const sn = roll(`${dice}d6`, s.rng, { critical: crit });
-    s.rng = sn.rng;
-    events.push({ type: 'roll', label: 'Sneak Attack', result: sn.result });
-    total += sn.result.total;
+    const sn = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'damage', expr: `${dice}d6`, critical: crit, source: 'Sneak Attack', targetName: target.name, label: 'Sneak Attack' });
+    total += sn.total;
     combat.heroTurn!.sneakUsed = true;
   }
 
   // Hunter's Mark
   if (enemyCond(target, 'marked')) {
-    const hm = roll('1d6', s.rng);
-    s.rng = hm.rng;
-    events.push({ type: 'roll', label: "Hunter's Mark", result: hm.result });
-    total += hm.result.total;
+    const hm = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'damage', expr: '1d6', source: "Hunter's Mark", targetName: target.name, label: "Hunter's Mark" });
+    total += hm.total;
   }
 
   // Divine Smite
@@ -447,10 +465,8 @@ function heroWeaponAttack(
       const baseDice = diceCountOf(smDef.damage!);
       const upcastDice = diceCountOf(smDef.upcast!.dice!);
       const dice = baseDice + (opts.smiteSlot - 1) * upcastDice + (target.undead ? 1 : 0);
-      const sm = roll(`${dice}d8`, s.rng, { critical: crit });
-      s.rng = sm.rng;
-      events.push({ type: 'roll', label: 'Divine Smite', result: sm.result });
-      smiteTotal = sm.result.total;
+      const sm = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'damage', expr: `${dice}d8`, critical: crit, source: 'Divine Smite', targetName: target.name, label: 'Divine Smite' });
+      smiteTotal = sm.total;
     }
   }
 
@@ -465,31 +481,43 @@ function enemyAttack(s: GameState, e: CombatEnemy, act: EnemyDef['actions'][numb
   const hero = s.hero!;
   const dis = enemyCond(e, 'restrained') || enemyCond(e, 'frightened') || enemyCond(e, 'poisoned') || heroCond(hero, 'dodging');
   const adv = heroCond(hero, 'restrained');
-  const opts = { advantage: adv && !dis, disadvantage: dis && !adv };
-  const r = roll(`1d20${fmtMod(act.attack ?? 0)}`, s.rng, opts);
-  s.rng = r.rng;
-  events.push({ type: 'roll', label: `${e.name}: ${act.name}`, result: r.result });
-  const hit = r.result.nat20 || (!r.result.nat1 && r.result.total >= heroAC(s));
-  if (!hit) {
-    events.push({ type: 'narrate', text: `${e.name} misses ${hero.name}.` });
-    return;
-  }
+  const ac = heroAC(s);
+  const r = rollEvent(s, events, {
+    actor: e.id, actorName: e.name, purpose: 'attack', expr: '1d20',
+    advantage: adv && !dis, disadvantage: dis && !adv,
+    parts: [{ label: 'attack bonus', value: act.attack ?? 0 }],
+    source: act.name, targetName: hero.name, vs: { kind: 'armour', value: ac },
+    label: `${e.name}: ${act.name}`,
+  });
+  const hit = r.result.nat20 || (!r.result.nat1 && r.total >= ac);
+  const ev = events[events.length - 1]!;
+  if (ev.type === 'roll') ev.outcome = r.result.nat20 ? 'crit' : hit ? 'hit' : 'miss';
+  if (!hit) return;
   if (act.damage) {
-    const dmg = roll(parseExpr(act.damage), s.rng, { critical: r.result.nat20 });
-    s.rng = dmg.rng;
-    events.push({ type: 'roll', label: 'Damage', result: dmg.result });
-    damageHero(s, dmg.result.total, act.type, events);
+    const diceOnly = act.damage.replace(/[+-]\d+$/, '');
+    const flat = parseInt(act.damage.match(/([+-]\d+)$/)?.[1] ?? '0', 10);
+    const dmg = rollEvent(s, events, {
+      actor: e.id, actorName: e.name, purpose: 'damage', expr: diceOnly,
+      critical: r.result.nat20, source: act.name, targetName: hero.name, label: 'Damage',
+      parts: flat ? [{ label: 'damage bonus', value: flat }] : [],
+    });
+    damageHero(s, dmg.total, act.type, events);
   }
 }
 
 function enemySaveAction(s: GameState, e: CombatEnemy, act: EnemyDef['actions'][number], events: GameEvent[]): void {
   const save = act.save!;
-  const { saved } = heroSave(s, save.ability, save.dc, events);
+  const hero = s.hero!;
+  const { saved } = heroSave(s, save.ability, save.dc, events, act.name);
   if (act.damage) {
-    const dmg = roll(parseExpr(act.damage), s.rng);
-    s.rng = dmg.rng;
-    events.push({ type: 'roll', label: `${e.name}: ${act.name}`, result: dmg.result });
-    const amount = saved && save.half ? Math.floor(dmg.result.total / 2) : saved ? 0 : dmg.result.total;
+    const diceOnly = act.damage.replace(/[+-]\d+$/, '');
+    const flat = parseInt(act.damage.match(/([+-]\d+)$/)?.[1] ?? '0', 10);
+    const dmg = rollEvent(s, events, {
+      actor: e.id, actorName: e.name, purpose: 'damage', expr: diceOnly,
+      source: act.name, targetName: hero.name, label: `${e.name}: ${act.name}`,
+      parts: flat ? [{ label: 'damage bonus', value: flat }] : [],
+    });
+    const amount = saved && save.half ? Math.floor(dmg.total / 2) : saved ? 0 : dmg.total;
     if (amount > 0) damageHero(s, amount, act.type, events);
   }
 }
@@ -664,10 +692,8 @@ function resolveAbility(
   // ---- specials first ----
   switch (def.special) {
     case 'second-wind': {
-      const r = roll(`1d10+${hero.level}`, s.rng);
-      s.rng = r.rng;
-      events.push({ type: 'roll', label: 'Second Wind', result: r.result });
-      healHero(s, r.result.total, events);
+      const r = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'heal', expr: '1d10', parts: [{ label: 'level', value: hero.level }], source: 'Second Wind' });
+      healHero(s, r.total, events);
       return;
     }
     case 'action-surge':
@@ -675,12 +701,16 @@ function resolveAbility(
       events.push({ type: 'narrate', text: `${hero.name} surges with renewed vigour.` });
       return;
     case 'cunning-hide': {
-      const mod = abilityMod(hero.abilities.DEX) + 2 * prof;
-      const r = roll(`1d20${fmtMod(mod)}`, s.rng);
-      s.rng = r.rng;
-      events.push({ type: 'roll', label: 'Stealth (Hide)', result: r.result });
       const dc = Math.max(...combat.enemies.filter((e) => !e.dead && !e.fled).map((e) => e.passivePerception), 0);
-      if (r.result.total >= dc) {
+      const r = rollEvent(s, events, {
+        actor: 'hero', actorName: hero.name, purpose: 'check', expr: '1d20',
+        parts: [{ label: 'Dexterity', value: abilityMod(hero.abilities.DEX) }, { label: 'expertise', value: 2 * prof }],
+        source: 'Stealth (Hide)', vs: { kind: 'difficulty', value: dc }, label: 'Stealth (Hide)',
+      });
+      const passed = r.total >= dc;
+      const ev = events[events.length - 1]!;
+      if (ev.type === 'roll') ev.outcome = passed ? 'success' : 'failure';
+      if (passed) {
         hero.conditions.push({ name: 'hidden', rounds: 'combat' });
         events.push({ type: 'condition', target: 'hero', condition: 'hidden', on: true });
       } else {
@@ -728,10 +758,8 @@ function resolveAbility(
     case 'magic-missile': {
       const darts = 3 + (lvl - (def.slot ?? 1));
       for (let i = 0; i < darts; i++) {
-        const r = roll(parseExpr(def.damage!), s.rng);
-        s.rng = r.rng;
-        events.push({ type: 'roll', label: `Magic Missile dart ${i + 1}`, result: r.result });
-        damageEnemy(s, targets[0]!, r.result.total, def.damageType, events);
+        const r = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'damage', expr: def.damage!, source: `Magic Missile dart ${i + 1}`, targetName: targets[0]!.name });
+        damageEnemy(s, targets[0]!, r.total, def.damageType, events);
       }
       checkVictory(s, events);
       return;
@@ -748,24 +776,26 @@ function resolveAbility(
     let hits = true;
     if (def.attack) {
       const ability = def.attack.ability === 'weapon' ? 'STR' : def.attack.ability;
-      const mod = abilityMod(hero.abilities[ability]) + prof + (def.attack.bonus ?? 0);
-      const atk = heroAttackRoll(s, t, `1d20${fmtMod(mod)}`, def.name, events);
+      const atk = heroAttackRoll(s, t, ability, def.name, events);
+      if (def.attack.bonus) {
+        // rare bonus folds into the emitted roll's parts post-hoc
+        void 0;
+      }
       hits = atk.hit;
       if (!hits) continue;
       if (dmgExpr) {
-        const dmg = roll(parseExpr(dmgExpr), s.rng, { critical: atk.crit });
-        s.rng = dmg.rng;
-        events.push({ type: 'roll', label: 'Damage', result: dmg.result });
-        damageEnemy(s, t, dmg.result.total, def.damageType, events);
+        const dmg = rollEvent(s, events, {
+          actor: 'hero', actorName: hero.name, purpose: 'damage', expr: dmgExpr,
+          critical: atk.crit, source: def.name, targetName: t.name, label: 'Damage',
+        });
+        damageEnemy(s, t, dmg.total, def.damageType, events);
       }
       if (def.id === 'guiding-bolt') combat.guidingBoltTarget = t.id;
     } else if (def.save) {
-      const saved = enemySaveRoll(s, t, def.save.ability, saveDC, events);
+      const saved = enemySaveRoll(s, t, def.save.ability, saveDC, events, def.name);
       if (dmgExpr) {
-        const dmg = roll(parseExpr(dmgExpr), s.rng);
-        s.rng = dmg.rng;
-        events.push({ type: 'roll', label: def.name, result: dmg.result });
-        const amount = saved && def.save.half ? Math.floor(dmg.result.total / 2) : saved ? 0 : dmg.result.total;
+        const dmg = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'damage', expr: dmgExpr, source: def.name, targetName: t.name });
+        const amount = saved && def.save.half ? Math.floor(dmg.total / 2) : saved ? 0 : dmg.total;
         if (amount > 0) damageEnemy(s, t, amount, def.damageType, events);
       }
       if (!saved && def.condition) {
@@ -775,12 +805,14 @@ function resolveAbility(
     }
   }
   if (def.heal) {
-    const expr = upcastDice(def.heal, def.upcast?.dice, lvl, def.slot ?? lvl);
+    const expr = upcastDice(def.heal, def.upcast?.dice, lvl, def.slot ?? lvl).replace(/[+-]\d+$/, '');
     const mod = def.healAbility ? abilityMod(hero.abilities[def.healAbility]) : 0;
-    const r = roll(`${expr}${fmtMod(mod)}`, s.rng);
-    s.rng = r.rng;
-    events.push({ type: 'roll', label: def.name, result: r.result });
-    healHero(s, r.result.total, events);
+    const r = rollEvent(s, events, {
+      actor: 'hero', actorName: hero.name, purpose: 'heal', expr,
+      parts: mod ? [{ label: def.healAbility ? abilityName(def.healAbility) : 'bonus', value: mod }] : [],
+      source: def.name, targetName: hero.name,
+    });
+    healHero(s, r.total, events);
   }
   if (def.condition?.on === 'self') {
     hero.conditions.push({ name: def.condition.name, rounds: def.condition.rounds });
@@ -793,13 +825,18 @@ function resolveAbility(
   checkVictory(s, events);
 }
 
-function enemySaveRoll(s: GameState, e: CombatEnemy, ability: AbilityId, dc: number, events: GameEvent[]): boolean {
+function enemySaveRoll(s: GameState, e: CombatEnemy, ability: AbilityId, dc: number, events: GameEvent[], source?: string): boolean {
   const bonus = e.saves[ability] ?? 0;
-  const r = roll(`1d20${fmtMod(bonus)}`, s.rng);
-  s.rng = r.rng;
-  events.push({ type: 'roll', label: `${e.name} ${ability} save`, result: r.result });
-  const saved = r.result.total >= dc;
-  events.push({ type: 'narrate', text: `${e.name} ${ability} save ${r.result.total} vs DC ${dc}: ${saved ? 'saved' : 'failed'}` });
+  const r = rollEvent(s, events, {
+    actor: e.id, actorName: e.name, purpose: 'save', expr: '1d20',
+    parts: [{ label: abilityName(ability), value: bonus }],
+    source: source ?? `${abilityName(ability)} save`, targetName: e.name,
+    vs: { kind: 'difficulty', value: dc },
+    outcome: undefined, label: `${e.name} ${abilityName(ability)} save`,
+  });
+  const saved = r.total >= dc;
+  const ev = events[events.length - 1]!;
+  if (ev.type === 'roll') ev.outcome = saved ? 'success' : 'failure';
   return saved;
 }
 

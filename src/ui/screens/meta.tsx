@@ -1,3 +1,4 @@
+import { describeEventText } from '../describe';
 import { useState } from 'preact/hooks';
 import { loadSlot } from '../../persistence';
 import { getAdapter } from '../store';
@@ -134,7 +135,14 @@ export function EndingScreen() {
       </h2>
       <h3>{scene?.title}</h3>
       <p>{ending?.epilogue ?? scene?.text}</p>
-      <p class="dim">XP earned: {ending?.xp ?? 0} · Gold: {s.game.hero?.gold ?? 0} gp</p>
+      <p>Earned on this quest: +{s.game.hero && s.game.quest ? s.game.hero.xp - s.game.quest.startXp : 0} XP, +{s.game.hero && s.game.quest ? s.game.hero.gold - s.game.quest.startGold : 0} gold</p>
+      <p class="dim">Carrying: {s.game.hero?.gold ?? 0} gold</p>
+      <details class="how-ended"><summary>How it ended</summary>
+        <ul>{s.game.log.slice(-15).map((l) => {
+          const t = describeEventText(l.event);
+          return t ? <li key={l.seq}>{t}</li> : null;
+        })}</ul>
+      </details>
       <div class="menu">
         <button onClick={() => gotoScreen('quests')}>Choose another quest</button>
         <button onClick={returnToTitle}>Title</button>
@@ -154,6 +162,11 @@ export function SettingsScreen() {
           onChange={(e) => setSetting('animations', e.currentTarget.checked)} />
         3D battle effects (needs WebGL)
         {!detectWebGL() && <span class="dim">— unavailable on this device</span>}
+      </label>
+      <label class="row" title="When off, click Roll before each of your rolls">
+        <input type="checkbox" checked={settings.autoRoll}
+          onChange={(e) => setSetting('autoRoll', e.currentTarget.checked)} />
+        Auto-roll dice (off = click to roll)
       </label>
       <label class="row">
         Roll playback speed

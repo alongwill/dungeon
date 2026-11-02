@@ -168,7 +168,7 @@
         "creature": "skeleton"
       },
       "ac": 10,
-      "hp": "2d8+4",
+      "hp": "2d6+2",
       "dex": 12,
       "passivePerception": 8,
       "xp": 75,
@@ -180,7 +180,7 @@
         {
           "name": "Rusty Blade",
           "attack": 3,
-          "damage": "1d6+1",
+          "damage": "1d6",
           "type": "slashing",
           "weight": 3
         }
@@ -219,7 +219,7 @@
         "creature": "troll"
       },
       "ac": 12,
-      "hp": "5d8+4",
+      "hp": "4d8+4",
       "dex": 9,
       "passivePerception": 8,
       "xp": 150,
@@ -257,7 +257,7 @@
       "actions": [
         {
           "name": "Rusty Crownblade",
-          "attack": 4,
+          "attack": 3,
           "damage": "1d6+1",
           "type": "slashing",
           "weight": 3
@@ -777,7 +777,7 @@
       "xp": 25,
       "title": "Dragged clear",
       "text": "You wake on the green at dusk. The miller found you on the road and dragged you home \u2014 his price is a modest lecture and your boots being full of marsh.\n\nThe mist is a little thicker tonight, curling round the well like it has questions.",
-      "epilogue": "The bell is still out there somewhere. So are your boots' missing soles."
+      "epilogue": "The bell is still out there somewhere. So are your boots' warmth."
     },
     "chapel": {
       "type": "narration",

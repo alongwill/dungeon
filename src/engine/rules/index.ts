@@ -95,3 +95,20 @@ export function resourceMax(
   if (def.max === 'level5') return 5 * level;
   return def.max;
 }
+
+export const ABILITY_NAMES: Record<AbilityId, string> = {
+  STR: 'Strength', DEX: 'Dexterity', CON: 'Constitution',
+  INT: 'Intelligence', WIS: 'Wisdom', CHA: 'Charisma',
+};
+
+export const SKILL_NAMES: Record<string, string> = {
+  athletics: 'Athletics', acrobatics: 'Acrobatics', sleightOfHand: 'Sleight of Hand',
+  stealth: 'Stealth', arcana: 'Arcana', history: 'History', investigation: 'Investigation',
+  nature: 'Nature', religion: 'Religion', animalHandling: 'Animal Handling',
+  insight: 'Insight', medicine: 'Medicine', perception: 'Perception',
+  survival: 'Survival', deception: 'Deception', intimidation: 'Intimidation',
+  performance: 'Performance', persuasion: 'Persuasion',
+};
+
+export const abilityName = (id: AbilityId): string => ABILITY_NAMES[id];
+export const skillName = (id: string): string => SKILL_NAMES[id] ?? id;

@@ -125,7 +125,7 @@ function heroAction(s: GameState, _quest: Quest): Parameters<typeof step>[1] | n
 function simulate(_quest: Quest, sceneId: string, classId: ClassId, level: number, seed: number): 'victory' | 'defeat' | 'death' | 'fled' | 'stuck' {
   const scene = _quest.scenes[sceneId] as EncounterScene;
   let s = step(initialState(), { type: 'newGame', hero: heroAtLevel(classId, level), seed }, { quest: null }).state;
-  s.quest = { questId: _quest.id, questVersion: _quest.version, sceneId, flags: {}, visited: [sceneId], pending: null };
+  s.quest = { questId: _quest.id, questVersion: _quest.version, sceneId, flags: {}, visited: [sceneId], startGold: 0, startXp: 0, pending: null };
   const events: never[] = [];
   startCombat(s, _quest, scene, events as never);
   let guard = 0;

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'preact/hooks';
 import { Avatar } from '../../avatar/Avatar';
+import { AbilityLabel } from '../abilityInfo';
 import { randomAvatar, suggestAvatars } from '../../avatar/generate';
 import { ACCESSORIES, EYES, HAIR_COLOURS, HAIR_STYLES, MOUTHS, SKINS } from '../../avatar/parts';
 import { CLASSES, CLASS_IDS } from '../../content/classes';
@@ -70,7 +71,7 @@ export function CreateScreen() {
             ))}
           </div>
           <div class="card">
-            <p>Hit die d{cls.hitDie} · HP {stats.maxHp} · AC {stats.ac}{stats.slots.length ? ` · slots ${stats.slots.join('/')}` : ''}</p>
+            <p>Hit die d{cls.hitDie} · Health {stats.maxHp} · Armour {stats.ac}{stats.slots.length ? ` · Spell slots ${stats.slots.join('/')}` : ''}</p>
             <p class="dim">Kit: {cls.kit.items.map((k) => k.item.replace(/-/g, ' ') + (k.qty ? ` ×${k.qty}` : '')).join(', ')} · {cls.kit.gold} gp</p>
             <h4>Abilities</h4>
             <ul class="ability-list">
@@ -91,7 +92,7 @@ export function CreateScreen() {
             <tbody>
               {ABILITY_IDS.map((ab, i) => (
                 <tr key={ab}>
-                  <th scope="row">{ab}</th>
+                  <th scope="row"><AbilityLabel id={ab} /></th>
                   <td>{abilities[ab]}</td>
                   <td class="dim">({abilityMod(abilities[ab]) >= 0 ? '+' : ''}{abilityMod(abilities[ab])})</td>
                   <td class="dice">
@@ -113,7 +114,11 @@ export function CreateScreen() {
               ))}
             </tbody>
           </table>
-          <p class="card">HP {stats.maxHp} · AC {stats.ac} · {stats.slots.length ? `slots ${stats.slots.join('/')}` : 'no spell slots'} · save DC {stats.saveDC || '—'}</p>
+          <p class="card">
+            <svg class="stat-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 21s-8-5.5-10-10.5C.7 6 3 3 6.5 3 9 3 11 5 12 6.5 13 5 15 3 17.5 3 21 3 23.3 6 22 10.5 20 15.5 12 21 12 21z"/></svg> Health {stats.maxHp} ·
+            <svg class="stat-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l8 3v6c0 5-3.4 9.6-8 11-4.6-1.4-8-6-8-11V5z"/></svg> Armour {stats.ac} ·
+            {stats.slots.length ? <><svg class="stat-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6zM19 15l.9 2.6 2.1.7-2.1.7L19 21l-.9-2.6-2.1-.7 2.1-.7z"/></svg> Spell slots {stats.slots.join('/')}</> : 'no spell slots'} · Spell difficulty {stats.saveDC || '—'}
+          </p>
         </section>
       )}
 
@@ -158,9 +163,9 @@ export function CreateScreen() {
       {stepIx === 3 && (
         <section class="card">
           <div class="row"><Avatar spec={avatar} size={80} label="your hero" />
-            <div><h3>{name}</h3><p>{cls.name} · HP {stats.maxHp} · AC {stats.ac} · {cls.kit.gold} gp</p></div>
+            <div><h3>{name}</h3><p>{cls.name} · Health {stats.maxHp} · Armour {stats.ac} · {cls.kit.gold} gp</p></div>
           </div>
-          <ul>{ABILITY_IDS.map((ab) => <li key={ab}>{ab} {abilities[ab]}</li>)}</ul>
+          <ul>{ABILITY_IDS.map((ab) => <li key={ab}><AbilityLabel id={ab} /> {abilities[ab]}</li>)}</ul>
         </section>
       )}
 

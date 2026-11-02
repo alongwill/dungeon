@@ -45,9 +45,12 @@ describe('combat basics', () => {
     const { state } = enterCombat(makeHero('fighter'), q, seed);
     const r = act(state, { type: 'attack', targetId: 'gobbo-1' }, q);
     expect(r.events.some((e) => e.type === 'combatEnd' && e.result === 'victory')).toBe(true);
-    expect(r.state.combat).toBeNull();
-    expect(r.state.hero!.xp).toBe(60); // 50 enemy xp + 10 ending xp
-    expect(r.state.status).toBe('questComplete');
+    expect(r.state.combat).not.toBeNull(); // battle stays on screen until 'continue'
+    expect(r.state.combat!.result).toBe('victory');
+    const r2 = act(r.state, { type: 'continue' }, q);
+    expect(r2.state.hero!.xp).toBe(60); // 50 enemy xp + 10 ending xp
+    expect(r2.state.status).toBe('questComplete');
+    expect(r2.state.combat).toBeNull();
   });
 
   it('attack misses vs very high AC and the enemy phase follows', () => {
@@ -56,11 +59,11 @@ describe('combat basics', () => {
     const seed = findSeed((s) => {
       if (s.combat!.heroTurn === null) return false;
       const r = step(s, { type: 'attack', targetId: 'gobbo-1' }, ctxOf(tough));
-      return r.events.some((e) => e.type === 'narrate' && /miss/.test(e.text));
+      return r.events.some((e) => e.type === 'roll' && e.purpose === 'attack' && e.outcome === 'miss');
     }, tough, makeHero('wizard'), 2000);
     const { state } = enterCombat(makeHero('wizard'), tough, seed);
     const r = act(state, { type: 'attack', targetId: 'gobbo-1' }, tough);
-    expect(r.events.some((e) => e.type === 'narrate' && /miss/.test(e.text))).toBe(true);
+    expect(r.events.some((e) => e.type === 'roll' && e.purpose === 'attack' && e.outcome === 'miss')).toBe(true);
     expect(r.events.some((e) => e.type === 'turnStart' && e.who === 'Gobbo')).toBe(true);
     expect(r.state.combat).not.toBeNull();
   });
@@ -96,7 +99,7 @@ describe('combat basics', () => {
       const dmgRoll = r.events.find((e) => e.type === 'roll' && e.label === 'Damage');
       const dmgEv = r.events.find((e) => e.type === 'damage' && e.damageType === 'bludgeoning');
       if (dmgRoll?.type === 'roll' && dmgEv?.type === 'damage') {
-        const raw = dmgRoll.result.total;
+        const raw = dmgRoll.finalTotal;
         if (mod === 'resist') expect(dmgEv.amount).toBe(Math.floor(raw / 2));
         if (mod === 'vulnerable') expect(dmgEv.amount).toBe(raw * 2);
         if (mod === 'immune') expect(dmgEv.amount).toBe(0);
@@ -251,7 +254,8 @@ describe('flee and defeat', () => {
     const { state } = enterCombat(makeHero('rogue'), q, seed);
     const r = act(state, { type: 'flee' }, q);
     expect(r.events.some((e) => e.type === 'combatEnd' && e.result === 'fled')).toBe(true);
-    expect(r.state.status).toBe('questComplete'); // flee → 'away' ending
+    const rc = act(r.state, { type: 'continue' }, q);
+    expect(rc.state.status).toBe('questComplete'); // flee → 'away' ending
   });
 
   it('flee is refused when canFlee is false', () => {
@@ -269,8 +273,9 @@ describe('flee and defeat', () => {
     );
     const { state } = enterCombat(makeHero('fighter'), q, 42);
     const r = act(state, { type: 'endTurn' }, q);
-    expect(r.state.combat).toBeNull();
-    expect(r.state.hero!.hp).toBe(1);
+    expect(r.state.combat!.result).toBe('defeat');
+    const rc = act(r.state, { type: 'continue' }, q);
+    expect(rc.state.hero!.hp).toBe(1);
     expect(r.state.hero!.dead).toBe(false);
     expect(r.events.some((e) => e.type === 'combatEnd' && e.result === 'defeat')).toBe(true);
   });
@@ -364,9 +369,9 @@ describe('save breakdowns and spell attacks', () => {
     const seed = findSeed((s) => s.combat!.heroTurn !== null, qq, cleric);
     const { state } = enterCombat(cleric, qq, seed);
     const r = act(state, { type: 'useAbility', abilityId: 'turn-undead' }, qq);
-    const saveRoll = r.events.find((e) => e.type === 'roll' && /WIS save/.test(e.label));
-    expect(saveRoll?.type === 'roll' && saveRoll.result.expr).toBe('1d20+4');
-    expect(r.events.some((e) => e.type === 'narrate' && /vs DC/.test(e.text))).toBe(true);
+    const saveRoll = r.events.find((e) => e.type === 'roll' && /Wisdom save/.test(e.label));
+    expect(saveRoll?.type === 'roll' && saveRoll.parts.some((p) => p.label === 'Wisdom' && p.value === 4)).toBe(true);
+    expect(saveRoll?.type === 'roll' && saveRoll.vs?.kind).toBe('difficulty');
   });
 
   it('hero saves include class proficiency in the roll expression', () => {
@@ -376,9 +381,9 @@ describe('save breakdowns and spell attacks', () => {
     const seed = findSeed((s) => s.combat!.heroTurn !== null, qq, cleric);
     const { state } = enterCombat(cleric, qq, seed);
     const r = act(state, { type: 'endTurn' }, qq);
-    const saveRoll = r.events.find((e) => e.type === 'roll' && /WIS save/.test(e.label));
-    expect(saveRoll?.type === 'roll' && saveRoll.result.expr).toBe('1d20+4');
-    expect(r.events.some((e) => e.type === 'narrate' && /WIS save \d+ vs DC 13/.test(e.text))).toBe(true);
+    const saveRoll = r.events.find((e) => e.type === 'roll' && /Wisdom save/.test(e.label));
+    expect(saveRoll?.type === 'roll' && saveRoll.parts.some((p) => p.label === 'proficiency')).toBe(true);
+    expect(saveRoll?.type === 'roll' && saveRoll.vs?.value).toBe(13);
   });
 
   it('spell attacks use advantage from hidden and narrate the total', () => {
@@ -389,10 +394,10 @@ describe('save breakdowns and spell attacks', () => {
     const s2 = structuredClone(state);
     s2.hero!.conditions.push({ name: 'hidden', rounds: 'combat' });
     const r = act(s2, { type: 'useAbility', abilityId: 'produce-flame', targetId: 'gobbo-1' }, qq);
-    const atk = r.events.find((e) => e.type === 'roll' && /Produce Flame/.test(e.label));
+    const atk = r.events.find((e) => e.type === 'roll' && e.purpose === 'attack' && /Produce Flame/.test(e.source ?? e.label));
     expect(atk?.type === 'roll' && atk.result.rolls.length === 2).toBe(true); // advantage
     expect(r.state.hero!.conditions.some((c) => c.name === 'hidden')).toBe(false); // consumed
-    expect(r.events.some((e) => e.type === 'narrate' && /Total \d+ vs AC/.test(e.text))).toBe(true);
+    expect(r.events.some((e) => e.type === 'roll' && e.purpose === 'attack' && e.outcome !== undefined)).toBe(true);
   });
 
   it('Divine Smite cannot be used as a standalone ability', () => {
@@ -417,4 +422,26 @@ it('Action Surge after the action is spent does not end the turn', () => {
   expect(r2.state.combat!.heroTurn).not.toBeNull(); // turn did NOT end
   const r3 = act(r2.state, { type: 'attack', targetId: 'gobbo-1' }, qq);
   expect(r3.events.some((e) => e.type === 'error' && /action/i.test(e.message))).toBe(false);
+});
+
+describe('roll event invariant', () => {
+  const keptSum = (r: { rolls: { value: number; kept: boolean }[] }) =>
+    r.rolls.reduce((a, d) => a + (d.kept ? d.value : 0), 0);
+  it('finalTotal === keptDiceSum + parts for many seeded combats across classes', () => {
+    const qq = combatQuest();
+    for (const cls of ['fighter', 'wizard', 'cleric', 'rogue'] as const) {
+      for (let seed = 1; seed <= 8; seed++) {
+        const { state } = enterCombat(makeHero(cls), qq, seed);
+        const r = act(state, { type: 'attack', targetId: 'gobbo-1' }, qq);
+        for (const e of r.events) {
+          if (e.type !== 'roll') continue;
+          expect(e.finalTotal).toBe(keptSum(e.result) + e.parts.reduce((a, p) => a + p.value, 0));
+          if (e.vs?.kind === 'armour' && e.outcome && !e.result.nat20 && !e.result.nat1)
+            expect(e.outcome === 'hit' || e.outcome === 'crit').toBe(e.finalTotal >= e.vs.value);
+          if (e.vs?.kind === 'difficulty' && e.outcome)
+            expect(e.outcome === 'success').toBe(e.finalTotal >= e.vs.value);
+        }
+      }
+    }
+  });
 });

@@ -51,3 +51,45 @@ describe('creature avatars', () => {
     expect(a).not.toBe(b);
   });
 });
+
+// abilityRows feeds the abilities step, sheet and ASI picker
+import { describe as d2, expect as e2, it as it2 } from 'vitest';
+import { abilityRows } from '../src/ui/format';
+import { createHero } from '../src/engine/character';
+
+d2('abilityRows', () => {
+  it2('returns all six abilities with full names and correct modifiers', () => {
+    const hero = createHero({ classId: 'wizard', name: 'T', abilities: { STR: 8, DEX: 14, CON: 12, INT: 15, WIS: 13, CHA: 10 }, avatar: { seed: 1 } });
+    const rows = abilityRows(hero);
+    e2(rows).toHaveLength(6);
+    e2(rows[0]).toEqual({ id: 'STR', name: 'Strength', score: 8, mod: -1 });
+    e2(rows[3]!.name).toBe('Intelligence');
+    e2(rows[3]!.mod).toBe(2);
+  });
+});
+
+import { resourcePips } from '../src/ui/format';
+import { assignByPriority, STANDARD_ARRAY } from '../src/engine/character';
+import { resourceMax } from '../src/engine/rules';
+import { CLASS_IDS } from '../src/content/classes';
+import { XP_THRESHOLDS } from '../src/engine/rules';
+
+d2('resourcePips', () => {
+  it2('pip count equals resourceMax for every class at levels 1 and 5', () => {
+    for (const classId of CLASS_IDS) {
+      for (const level of [1, 5]) {
+        const hero = createHero({ classId, name: 'T', abilities: assignByPriority(STANDARD_ARRAY, classId), avatar: { seed: 1 } });
+        hero.level = level;
+        hero.xp = XP_THRESHOLDS[level] ?? 0;
+        // refresh resources like a long rest would
+        for (const id of Object.keys(hero.resources))
+          hero.resources[id] = resourceMax(classId, id, hero.abilities, level);
+        for (const g of resourcePips(hero)) {
+          e2(g.max).toBe(resourceMax(classId, g.id, hero.abilities, level));
+          e2(g.max).toBeGreaterThan(0);
+          e2(g.id).not.toBe('lay-on-hands');
+        }
+      }
+    }
+  });
+});

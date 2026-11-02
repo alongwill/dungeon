@@ -19,7 +19,7 @@ describe('template quest validity', () => {
 describe('conditions and interpolation', () => {
   it('evaluates flag/item/gold/class/level conditions', () => {
     const s = newGame(makeHero('rogue'), 1);
-    s.quest = { questId: 'q', questVersion: '1', sceneId: 'x', flags: { n: 3 }, visited: [], pending: null };
+    s.quest = { questId: 'q', questVersion: '1', sceneId: 'x', flags: { n: 3 }, visited: [], startGold: 0, startXp: 0, pending: null };
     s.hero!.gold = 30;
     expect(evalCondition({ flag: 'n', gte: 2 }, s, null)).toBe(true);
     expect(evalCondition({ flag: 'n', eq: 3 }, s, null)).toBe(true);
@@ -37,7 +37,7 @@ describe('conditions and interpolation', () => {
 
   it('interpolates hero and flags', () => {
     const s = newGame(makeHero('fighter', 'Borin'), 1);
-    s.quest = { questId: 'q', questVersion: '1', sceneId: 'x', flags: { reward: 60 }, visited: [], pending: null };
+    s.quest = { questId: 'q', questVersion: '1', sceneId: 'x', flags: { reward: 60 }, visited: [], startGold: 0, startXp: 0, pending: null };
     expect(interpolate('{{hero.name}} the Fighter gets {{flag.reward}} gp', s, null))
       .toBe('Borin the Fighter gets 60 gp');
   });

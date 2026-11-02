@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'preact/hooks';
-import { formatRoll } from '../engine/dice';
+import { EventCard } from './describe';
 import type { GameEvent } from '../engine/model';
 
 /** Index after which the "current scene" started (last sceneEnter/combatStart). */
@@ -28,7 +28,7 @@ export function describeEvent(e: GameEvent): { text: string; cls: string } | nul
   switch (e.type) {
     case 'roll': {
       const crit = e.result.nat20 ? ' crit' : e.result.nat1 ? ' fumble' : '';
-      return { text: `${e.label}: ${formatRoll(e.result)}`, cls: `roll${crit}` };
+      return { text: e.label, cls: `roll${crit}` };
     }
     case 'narrate': {
       const cls = /miss|fail/i.test(e.text) ? 'miss' : /hit!|success|defeated|saved/i.test(e.text) ? 'hit' : '';
@@ -59,10 +59,7 @@ export function EventFeed({ queue, playback }: { queue: GameEvent[]; playback: n
   if (!items.length) return null;
   return (
     <div class="feed" ref={ref} aria-label="event feed">
-      {items.map((e, i) => {
-        const d = describeEvent(e);
-        return d ? <p key={i} class={`feed-line ${d.cls}`}>{d.text}</p> : null;
-      })}
+      {items.map((e, i) => <EventCard key={i} ev={e} />)}
     </div>
   );
 }

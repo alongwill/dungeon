@@ -1,8 +1,7 @@
-import { parseExpr } from '../dice/parse';
-import { fmtMod, roll } from '../dice/roll';
+import { rollEvent } from '../rolls';
 import { ITEMS } from '../../content/items';
 import { CLASSES } from '../../content/classes';
-import { abilityMod, MAX_LEVEL, proficiencyBonus, XP_THRESHOLDS } from '../rules';
+import { abilityMod, abilityName, MAX_LEVEL, proficiencyBonus, XP_THRESHOLDS } from '../rules';
 import type {
   Condition,
   Effect,
@@ -98,10 +97,8 @@ export function applyEffects(
       let amount = 0;
       if (typeof eff.gold === 'number') amount = eff.gold;
       else {
-        const { result, rng } = roll(parseExpr(eff.gold), s.rng);
-        s.rng = rng;
-        amount = result.total;
-        events.push({ type: 'roll', label: 'Gold', result });
+        const { total } = rollEvent(s, events, { actor: 'hero', actorName: s.hero?.name ?? 'hero', purpose: 'gold', expr: eff.gold, source: 'Gold', label: 'Gold' });
+        amount = total;
       }
       if (s.hero) s.hero.gold = Math.max(0, s.hero.gold + amount);
     } else if ('addItem' in eff) {
@@ -111,10 +108,8 @@ export function applyEffects(
     } else if ('xp' in eff) {
       awardXp(s, eff.xp, events);
     } else if ('heal' in eff) {
-      const { result, rng } = roll(parseExpr(eff.heal), s.rng);
-      s.rng = rng;
-      events.push({ type: 'roll', label: 'Healing', result });
-      healHero(s, result.total, events);
+      const { total } = rollEvent(s, events, { actor: 'hero', actorName: s.hero?.name ?? 'hero', purpose: 'heal', expr: eff.heal, source: 'Healing', label: 'Healing' });
+      healHero(s, total, events);
     } else if ('damage' in eff) {
       applyDamageEffect(s, eff, events);
     } else if ('condition' in eff) {
@@ -134,35 +129,33 @@ export function heroSave(
   ability: keyof Hero['abilities'],
   dc: number,
   events: GameEvent[],
+  source?: string,
 ): { total: number; saved: boolean } {
   const hero = s.hero!;
-  let mod = abilityMod(hero.abilities[ability]);
-  if (CLASSES[hero.classId].saves.includes(ability)) mod += proficiencyBonus(hero.level);
-  const r = roll(`1d20${fmtMod(mod)}`, s.rng);
-  s.rng = r.rng;
-  events.push({ type: 'roll', label: `${hero.name} ${ability} save`, result: r.result });
-  let total = r.result.total;
+  const parts: { label: string; value: number }[] = [{ label: abilityName(ability), value: abilityMod(hero.abilities[ability]) }];
+  if (CLASSES[hero.classId].saves.includes(ability))
+    parts.push({ label: 'proficiency', value: proficiencyBonus(hero.level) });
   const has = (n: string) => hero.conditions.some((c) => c.name === n);
   if (has('blessed')) {
-    const b = roll('1d4', s.rng);
-    s.rng = b.rng;
-    total += b.result.total;
-    events.push({ type: 'roll', label: 'Bless', result: b.result });
+    const b = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'other', expr: '1d4', source: 'Bless' });
+    parts.push({ label: 'Bless (d4)', value: b.result.total });
   }
   if (has('inspired')) {
-    const b = roll('1d6', s.rng);
-    s.rng = b.rng;
-    total += b.result.total;
-    events.push({ type: 'roll', label: 'Inspiration', result: b.result });
+    const b = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'other', expr: '1d6', source: 'Inspiration' });
+    parts.push({ label: 'Inspiration (d6)', value: b.result.total });
     hero.conditions = hero.conditions.filter((c) => c.name !== 'inspired');
     events.push({ type: 'condition', target: 'hero', condition: 'inspired', on: false });
   }
-  const saved = total >= dc;
-  events.push({
-    type: 'narrate',
-    text: `${hero.name} ${ability} save ${total} vs DC ${dc}: ${saved ? 'saved' : 'failed'}`,
+  const r = rollEvent(s, events, {
+    actor: 'hero', actorName: hero.name, purpose: 'save', expr: '1d20',
+    parts, source: source ?? `${abilityName(ability)} save`, targetName: hero.name,
+    vs: { kind: 'difficulty', value: dc },
+    label: `${hero.name} ${abilityName(ability)} save`,
   });
-  return { total, saved };
+  const saved = r.total >= dc;
+  const ev = events[events.length - 1]!;
+  if (ev.type === 'roll') ev.outcome = saved ? 'success' : 'failure';
+  return { total: r.total, saved };
 }
 
 function applyDamageEffect(
@@ -172,16 +165,20 @@ function applyDamageEffect(
 ): void {
   const hero = s.hero;
   if (!hero) return;
-  const { result, rng } = roll(parseExpr(eff.damage), s.rng);
-  s.rng = rng;
-  events.push({ type: 'roll', label: 'Damage', result });
-  let amount = result.total;
+  const diceOnly = eff.damage.replace(/[+-]\d+$/, '');
+  const flat = parseInt(eff.damage.match(/([+-]\d+)$/)?.[1] ?? '0', 10);
+  const { total: rolled } = rollEvent(s, events, {
+    actor: 'environment', actorName: 'the scene', purpose: 'damage', expr: diceOnly,
+    parts: flat ? [{ label: 'bonus', value: flat }] : [], source: 'Damage', label: 'Damage',
+    targetName: hero.name,
+  });
+  let amount = rolled;
   if (eff.save) {
     const { saved } = heroSave(s, eff.save.ability as keyof Hero['abilities'], eff.save.dc, events);
     if (saved) amount = eff.save.half ? Math.floor(amount / 2) : 0;
   }
   hero.hp = Math.max(0, hero.hp - amount);
-  events.push({ type: 'damage', target: 'hero', amount, damageType: eff.type as never });
+  events.push({ type: 'damage', target: 'hero', amount, damageType: eff.type as never, targetName: hero.name, hpLeft: hero.hp, hpMax: hero.maxHp });
   if (hero.hp === 0 && !s.combat) {
     hero.dead = true;
     s.status = 'dead';

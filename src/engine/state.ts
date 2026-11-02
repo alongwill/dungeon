@@ -1,5 +1,5 @@
-import { parseExpr } from './dice/parse';
-import { fmtMod, roll, formatRoll, type RollResult } from './dice/roll';
+import { type RollResult } from './dice/roll';
+import { rollEvent } from './rolls';
 import { rngFromSeed } from './dice/rng';
 import { CLASSES } from '../content/classes';
 import { ABILITIES } from '../content/abilities';
@@ -11,6 +11,8 @@ import {
   resourceMax,
   SKILL_ABILITY,
   slotsFor,
+  abilityName,
+  skillName,
 } from './rules';
 import {
   applyEffects,
@@ -49,6 +51,7 @@ export function initialState(): GameState {
     quest: null,
     combat: null,
     log: [],
+    logSeq: 0,
     status: 'idle',
   };
 }
@@ -59,26 +62,34 @@ function rollCheck(
   s: GameState,
   ctx: StepCtx,
   check: CheckDef,
+  _events: GameEvent[],
 ): { rollResult: RollResult; total: number } {
   const hero = s.hero!;
   const prof = proficiencyBonus(hero.level);
-  let mod = 0;
-  if (check.skill) {
-    const ability = SKILL_ABILITY[check.skill];
-    mod = abilityMod(hero.abilities[ability]);
-    const cls = CLASSES[hero.classId];
-    if (cls.expertise.includes(check.skill)) mod += 2 * prof;
-    else if (cls.skills.includes(check.skill)) mod += prof;
-  } else if (check.ability) {
-    mod = abilityMod(hero.abilities[check.ability]);
-  }
   let adv = check.advantageIf ? evalCondition(check.advantageIf, s, ctx.quest) : false;
   let dis = check.disadvantageIf ? evalCondition(check.disadvantageIf, s, ctx.quest) : false;
   if (hero.classId === 'ranger' && check.skill === 'survival') adv = true; // Natural Explorer
   if (hero.conditions.some((c) => c.name === 'poisoned')) dis = true;
-  const r = roll(`1d20${fmtMod(mod)}`, s.rng, { advantage: adv && !dis, disadvantage: dis && !adv });
-  s.rng = r.rng;
-  return { rollResult: r.result, total: r.result.total };
+  const parts: { label: string; value: number }[] = [];
+  if (check.skill) {
+    const ability = SKILL_ABILITY[check.skill];
+    parts.push({ label: abilityName(ability), value: abilityMod(hero.abilities[ability]) });
+    const cls = CLASSES[hero.classId];
+    if (cls.expertise.includes(check.skill)) parts.push({ label: 'expertise', value: 2 * prof });
+    else if (cls.skills.includes(check.skill)) parts.push({ label: 'proficiency', value: prof });
+  } else if (check.ability) {
+    parts.push({ label: abilityName(check.ability), value: abilityMod(hero.abilities[check.ability]) });
+  }
+  const label = checkLabel(check);
+  const source = check.skill ? `${skillName(check.skill)} (${abilityName(SKILL_ABILITY[check.skill])})` : label;
+  const r = rollEvent(s, _events, {
+    actor: 'hero', actorName: hero.name, purpose: 'check', expr: '1d20',
+    advantage: adv && !dis, disadvantage: dis && !adv, parts,
+    source, vs: { kind: 'difficulty', value: check.dc }, label,
+  });
+  const ev = _events[_events.length - 1]!;
+  if (ev.type === 'roll') ev.outcome = r.total >= check.dc ? 'success' : 'failure';
+  return { rollResult: r.result, total: r.total };
 }
 
 // ---------- scene runner ----------
@@ -104,8 +115,7 @@ function enterScene(s: GameState, ctx: StepCtx, events: GameEvent[], sceneId: st
 
   switch (scene.type) {
     case 'check': {
-      const { rollResult } = rollCheck(s, ctx, scene.check);
-      events.push({ type: 'roll', label: checkLabel(scene.check), result: rollResult });
+      const { rollResult } = rollCheck(s, ctx, scene.check, events);
       qp.pending = {
         kind: 'check',
         check: scene.check,
@@ -127,10 +137,8 @@ function enterScene(s: GameState, ctx: StepCtx, events: GameEvent[], sceneId: st
       if (scene.gold !== undefined) {
         if (typeof scene.gold === 'number') gold = scene.gold;
         else {
-          const r = roll(parseExpr(scene.gold), s.rng);
-          s.rng = r.rng;
-          events.push({ type: 'roll', label: 'Gold', result: r.result });
-          gold = r.result.total;
+          const r = rollEvent(s, events, { actor: 'hero', actorName: s.hero!.name, purpose: 'gold', expr: scene.gold, source: 'Gold', label: 'Gold' });
+          gold = r.total;
         }
         s.hero!.gold += gold;
       }
@@ -157,15 +165,26 @@ function enterScene(s: GameState, ctx: StepCtx, events: GameEvent[], sceneId: st
 }
 
 function checkLabel(check: CheckDef): string {
-  return check.skill ? `${check.skill} check` : `${check.ability} check`;
+  return check.skill ? `${skillName(check.skill)} check` : `${abilityName(check.ability!)} check`;
 }
 
-function finishCombat(s: GameState, ctx: StepCtx, events: GameEvent[]): void {
+/** combat stays on screen once result is set; 'continue' resolves it. */
+function endCombat(s: GameState, _ctx: StepCtx, _events: GameEvent[]): void {
+  const combat = s.combat;
+  if (!combat?.result || combat.resultApplied) return;
+  combat.resultApplied = true;
+  if (combat.result === 'death') {
+    s.hero!.dead = true;
+    s.status = 'dead';
+  }
+}
+
+/** 'continue' after combat.result applies the outcome and clears combat. */
+function resolveCombatOutcome(s: GameState, ctx: StepCtx, events: GameEvent[]): void {
   const combat = s.combat;
   if (!combat?.result) return;
   const hero = s.hero!;
   const result = combat.result;
-  // all conditions clear when combat ends
   hero.conditions = [];
   const victory = combat.victory;
   const flee = combat.fleeOutcome;
@@ -176,7 +195,6 @@ function finishCombat(s: GameState, ctx: StepCtx, events: GameEvent[]): void {
       ? combat.enemies.filter((e) => e.dead).reduce((n, e) => n + e.xp, 0)
       : 0;
   s.combat = null;
-
   if (result === 'victory') {
     if (xpFor > 0) awardXp(s, xpFor, events);
     s.status = 'inQuest';
@@ -189,9 +207,6 @@ function finishCombat(s: GameState, ctx: StepCtx, events: GameEvent[]): void {
     hero.hp = 1;
     s.status = 'inQuest';
     applyOutcome(s, ctx, events, defeat!);
-  } else {
-    hero.dead = true;
-    s.status = 'dead';
   }
 }
 
@@ -201,17 +216,14 @@ export function step(state: GameState, action: Action, ctx: StepCtx): StepResult
   const s = structuredClone(state) as GameState;
   const events: GameEvent[] = [];
   dispatch(s, action, ctx, events);
-  if (s.combat?.result) finishCombat(s, ctx, events);
+  if (s.combat?.result) endCombat(s, ctx, events);
   appendLog(s, events);
   return { state: s, events };
 }
 
 function appendLog(s: GameState, events: GameEvent[]): void {
   for (const ev of events) {
-    if (ev.type === 'roll') s.log.push({ text: `${ev.label}: ${formatRoll(ev.result)}`, roll: ev.result });
-    else if (ev.type === 'narrate') s.log.push({ text: ev.text });
-    else if (ev.type === 'damage') s.log.push({ text: `${ev.target} takes ${ev.amount} damage.` });
-    else if (ev.type === 'heal') s.log.push({ text: `${ev.target} heals ${ev.amount}.` });
+    s.log.push({ seq: s.logSeq++, event: ev });
   }
   if (s.log.length > 200) s.log.splice(0, s.log.length - 200);
 }
@@ -233,6 +245,8 @@ function dispatch(s: GameState, action: Action, ctx: StepCtx, events: GameEvent[
         questId: quest.id,
         questVersion: quest.version,
         sceneId: quest.start,
+        startGold: s.hero.gold,
+        startXp: s.hero.xp,
         flags: { ...(quest.flags ?? {}) },
         visited: [],
         pending: null,
@@ -253,8 +267,7 @@ function dispatch(s: GameState, action: Action, ctx: StepCtx, events: GameEvent[
       if (choice.requires && !evalCondition(choice.requires, s, ctx.quest))
         return void events.push(err('requirements not met'));
       if (choice.check) {
-        const { rollResult } = rollCheck(s, ctx, choice.check);
-        events.push({ type: 'roll', label: checkLabel(choice.check), result: rollResult });
+        const { rollResult } = rollCheck(s, ctx, choice.check, events);
         qp.pending = {
           kind: 'check',
           check: choice.check,
@@ -272,6 +285,7 @@ function dispatch(s: GameState, action: Action, ctx: StepCtx, events: GameEvent[
       return;
     }
     case 'continue': {
+      if (s.combat?.result) { resolveCombatOutcome(s, ctx, events); return; }
       const qp = s.quest;
       if (!qp?.pending) return void events.push(err('nothing to continue'));
       const pending = qp.pending;
@@ -293,9 +307,7 @@ function dispatch(s: GameState, action: Action, ctx: StepCtx, events: GameEvent[
       if (!hero || (hero.resources['inspiration'] ?? 0) <= 0)
         return void events.push(err('no inspiration left'));
       hero.resources['inspiration']!--;
-      const r = roll('1d6', s.rng);
-      s.rng = r.rng;
-      events.push({ type: 'roll', label: 'Bardic Inspiration', result: r.result });
+      const r = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'other', expr: '1d6', source: 'Bardic Inspiration' });
       qp.pending.inspired = true;
       qp.pending.inspirationBonus = r.result.total;
       qp.pending.success = qp.pending.roll.total + r.result.total >= qp.pending.check.dc;
@@ -381,13 +393,18 @@ function combatAction(s: GameState, action: Action, ctx: StepCtx, events: GameEv
     case 'flee': {
       if (!combat.canFlee || !combat.fleeOutcome) return void events.push(err('cannot flee here'));
       if (!actionAvailable) return void events.push(err('action already used'));
-      const mod = abilityMod(hero.abilities.DEX) +
-        (CLASSES[hero.classId].skills.includes('acrobatics') ? proficiencyBonus(hero.level) : 0);
-      const r = roll(`1d20${fmtMod(mod)}`, s.rng);
-      s.rng = r.rng;
-      events.push({ type: 'roll', label: 'Flee (Acrobatics)', result: r.result });
+      const parts = [
+        { label: 'Dexterity', value: abilityMod(hero.abilities.DEX) },
+        ...(CLASSES[hero.classId].skills.includes('acrobatics') ? [{ label: 'proficiency', value: proficiencyBonus(hero.level) }] : []),
+      ];
+      const r = rollEvent(s, events, {
+        actor: 'hero', actorName: hero.name, purpose: 'check', expr: '1d20', parts,
+        source: 'Acrobatics (Dexterity)', vs: { kind: 'difficulty', value: combat.fleeDC }, label: 'Flee (Acrobatics)',
+      });
+      const fleeEv = events[events.length - 1]!;
+      if (fleeEv.type === 'roll') fleeEv.outcome = r.total >= combat.fleeDC ? 'success' : 'failure';
       useAction();
-      if (r.result.total >= combat.fleeDC) {
+      if (r.total >= combat.fleeDC) {
         combat.result = 'fled';
         events.push({ type: 'combatEnd', result: 'fled' });
       } else {
@@ -430,10 +447,12 @@ function restAction(
     refreshResources('short');
     const dice = Math.max(0, Math.min(action.hitDice ?? 0, hero.level - hero.hitDiceUsed));
     for (let i = 0; i < dice; i++) {
-      const r = roll(`1d${cls.hitDie}${fmtMod(abilityMod(hero.abilities.CON))}`, s.rng);
-      s.rng = r.rng;
-      events.push({ type: 'roll', label: 'Hit Die', result: r.result });
-      healHero(s, r.result.total, events);
+      const r = rollEvent(s, events, {
+        actor: 'hero', actorName: hero.name, purpose: 'heal', expr: `1d${cls.hitDie}`,
+        parts: [{ label: 'Constitution', value: abilityMod(hero.abilities.CON) }],
+        source: 'Hit Die', label: 'Hit Die',
+      });
+      healHero(s, r.total, events);
     }
     hero.hitDiceUsed += dice;
     // Arcane Recovery: restore one 1st-level slot once per long rest
@@ -501,12 +520,14 @@ function outOfCombatAbility(
   if (def.slot === undefined || lvl < def.slot || (hero.slotsUsed[idx] ?? 0) >= max)
     return void events.push(err('no slot available'));
   hero.slotsUsed[idx]!++;
-  const expr = upcastDice(def.heal!, def.upcast?.dice, lvl, def.slot);
+  const expr = upcastDice(def.heal!, def.upcast?.dice, lvl, def.slot).replace(/[+-]\d+$/, '');
   const mod = def.healAbility ? abilityMod(hero.abilities[def.healAbility]) : 0;
-  const r = roll(`${expr}${fmtMod(mod)}`, s.rng);
-  s.rng = r.rng;
-  events.push({ type: 'roll', label: def.name, result: r.result });
-  healHero(s, r.result.total, events);
+  const r = rollEvent(s, events, {
+    actor: 'hero', actorName: hero.name, purpose: 'heal', expr,
+    parts: mod ? [{ label: def.healAbility ? abilityName(def.healAbility) : 'bonus', value: mod }] : [],
+    source: def.name, targetName: hero.name,
+  });
+  healHero(s, r.total, events);
 }
 
 function equipAction(

@@ -43,14 +43,14 @@ describe('persistence', () => {
     const res = loadSlot(a, 1, clock);
     expect(res.migrated).toBe(true);
     const env = res.save!;
-    expect(env.schemaVersion).toBe(1);
+    expect(env.schemaVersion).toBe(CURRENT_SCHEMA);
     expect(env.state.hero!.name).toBe('Old Hero');
     expect(env.state.hero!.hp).toBe(18);
     expect(env.state.rng).toBe((saveV0 as SaveV0).rng);
     expect(env.summary.classId).toBe('fighter');
     // rewritten in storage
     const stored = JSON.parse(a.get(slotKey(1))!) as SaveEnvelope;
-    expect(stored.schemaVersion).toBe(1);
+    expect(stored.schemaVersion).toBe(CURRENT_SCHEMA);
     // second load: no migration needed
     expect(loadSlot(a, 1, clock).migrated).toBe(false);
   });
@@ -78,7 +78,7 @@ describe('persistence', () => {
     const state = newGame(makeHero(), 5);
     state.quest = {
       questId: quest.id, questVersion: quest.version,
-      sceneId: 'deleted-scene', flags: {}, visited: ['deleted-scene'], pending: null,
+      sceneId: 'deleted-scene', flags: {}, visited: ['deleted-scene'], startGold: 0, startXp: 0, pending: null,
     };
     state.status = 'inQuest';
     const env = saveSlot(a, 1, state, null, quest, clock);
@@ -90,4 +90,32 @@ describe('persistence', () => {
     env2.state.quest!.sceneId = 'cellar';
     expect(reconcileQuestDrift(env2, quest).reset).toBe(false);
   });
+});
+
+it('migrates v1 → v2 (log entries become events, quest earnings set)', () => {
+  const a = new MemoryAdapter();
+  const v1 = {
+    ...JSON.parse(JSON.stringify(saveV0)),
+    schemaVersion: 1,
+    state: {
+      version: 1,
+      rng: 7,
+      hero: { name: 'Old Hero', hp: 10, maxHp: 10, gold: 40, xp: 30, level: 1, classId: 'fighter' },
+      quest: { questId: 'q', questVersion: '1', sceneId: 's', flags: {}, visited: [], pending: null },
+      combat: null,
+      log: [{ text: 'Old line' }, { text: 'Another' }],
+      status: 'inQuest',
+    },
+  };
+  a.set(slotKey(1), JSON.stringify(v1));
+  const res = loadSlot(a, 1, clock);
+  expect(res.migrated).toBe(true);
+  const env = res.save!;
+  expect(env.schemaVersion).toBe(CURRENT_SCHEMA);
+  const st = env.state;
+  expect(st.log[0]!.event.type).toBe('narrate');
+  expect(st.log[0]!.seq).toBe(0);
+  expect(st.logSeq).toBe(2);
+  expect(st.quest!.startGold).toBe(st.hero!.gold);
+  expect(st.quest!.startXp).toBe(st.hero!.xp);
 });

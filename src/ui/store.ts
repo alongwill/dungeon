@@ -18,7 +18,7 @@ import {
 } from '../persistence';
 import { listQuests, loadQuest } from '../quests/registry';
 import { rngFromSeed } from '../engine/dice';
-import { nextPlaybackCursor } from './playback';
+import { nextPlaybackCursor, pendingRoll } from './playback';
 
 export type Screen = 'title' | 'slots' | 'create' | 'quests' | 'adventure' | 'settings';
 export type Drawer = 'character' | 'inventory' | 'log' | null;
@@ -138,7 +138,7 @@ export function dispatch(action: Action): void {
     game: state,
     queue,
     // first item of the new batch is revealed immediately — no initial delay
-    ui: { ...store.ui, playback: nextPlaybackCursor(queue, queue.length - events.length) },
+    ui: { ...store.ui, playback: nextPlaybackCursor(queue, queue.length - events.length, !store.ui.settings.autoRoll) },
     ...(hadSceneEnter && state.status !== 'dead' ? { checkpoint: state } : {}),
   });
   autosave();
@@ -147,8 +147,21 @@ export function dispatch(action: Action): void {
 /** Advance the playback cursor by one, or fully when `all` is set. */
 export function advancePlayback(all = false): void {
   setUi({
-    playback: all ? store.queue.length : nextPlaybackCursor(store.queue, store.ui.playback),
+    playback: all
+      ? store.queue.length
+      : nextPlaybackCursor(store.queue, store.ui.playback, !store.ui.settings.autoRoll),
   });
+}
+
+/** The hero roll awaiting a manual click, if manual rolling is on. */
+export function manualRollPending() {
+  return store.ui.settings.autoRoll ? null : pendingRoll(store.queue, store.ui.playback);
+}
+
+/** Reveal the gated roll and continue playback (presentation only — result is fixed). */
+export function confirmRoll(): void {
+  setUi({ playback: nextPlaybackCursor(store.queue, store.ui.playback + 1, !store.ui.settings.autoRoll) });
+  // ^ consume the gated event at cursor then resume; +1 skips past the gate
 }
 
 export async function refreshQuests(): Promise<void> {
@@ -200,8 +213,8 @@ export async function loadGame(slot: number): Promise<void> {
       quest,
       slot,
       checkpoint: save.checkpoint,
-      queue: [],
-      ui: { ...store.ui, playback: 0 },
+      queue: save.state.log.map((l) => l.event), // battle history survives reload
+      ui: { ...store.ui, playback: save.state.log.length },
     });
     gotoScreen(save.state.status === 'idle' ? 'quests' : 'adventure');
     if (save.state.status === 'idle') await refreshQuests();

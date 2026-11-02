@@ -44,6 +44,7 @@ describe('headless playthrough of template-cellar-rats', () => {
       run({ type: 'attack', targetId: target.id });
       // the fighter still has a usable bonus action, so the turn may not auto-end
       if (cur.combat && !cur.combat.result && cur.combat.heroTurn) run({ type: 'endTurn' });
+      if (cur.combat?.result) run({ type: 'continue' }); // battle stays until resolved
     }
     expect(guard).toBeLessThan(100);
     expect(['inQuest', 'questComplete', 'dead']).toContain(cur.status);

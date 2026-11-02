@@ -2,7 +2,7 @@ import type { GameState, Hero } from '../engine/model';
 import type { Quest } from '../engine/quest/types';
 
 export const APP_VERSION = '0.1.0';
-export const CURRENT_SCHEMA = 1;
+export const CURRENT_SCHEMA = 2;
 export const SLOT_COUNT = 3;
 
 export const slotKey = (n: number) => `dungeon:slot:${n}`;
@@ -132,6 +132,7 @@ const migrate0to1 = (old: unknown): SaveEnvelope => {
     quest: null,
     combat: null,
     log: [],
+      logSeq: 0,
     status: v0.status === 'dead' ? 'dead' : 'idle',
   };
   return {
@@ -152,8 +153,31 @@ const migrate0to1 = (old: unknown): SaveEnvelope => {
 };
 
 /** migrations[n] upgrades a v-n envelope to v-(n+1). */
+function migrate1to2(old: unknown): SaveEnvelope {
+  const env = structuredClone(old) as SaveEnvelope;
+  env.schemaVersion = 2;
+  const st = env.state as unknown as {
+    log?: { text?: string; event?: unknown; seq?: number }[];
+    logSeq?: number;
+    hero?: { gold?: number; xp?: number };
+    quest?: { startGold?: number; startXp?: number } | null;
+  };
+  const raw = st.log ?? [];
+  const events = raw.map((l, i) => l.event
+    ? { seq: typeof l.seq === 'number' ? l.seq : i, event: l.event }
+    : { seq: i, event: { type: 'narrate', text: l.text ?? '' } });
+  st.log = events as never;
+  st.logSeq = typeof st.logSeq === 'number' ? st.logSeq : events.length;
+  if (st.quest) {
+    st.quest.startGold ??= st.hero?.gold ?? 0;
+    st.quest.startXp ??= st.hero?.xp ?? 0;
+  }
+  return env;
+}
+
 export const migrations: Record<number, (old: unknown) => SaveEnvelope> = {
   0: migrate0to1,
+  1: migrate1to2,
 };
 
 // ---------- load / save ----------
@@ -258,9 +282,10 @@ export function reconcileQuestDrift(
 export interface Settings {
   animations: boolean;
   rollPlaybackMs: number;
+  autoRoll: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { animations: true, rollPlaybackMs: 350 };
+export const DEFAULT_SETTINGS: Settings = { animations: true, rollPlaybackMs: 350, autoRoll: false };
 
 export function loadSettings(adapter: StorageAdapter): Settings {
   const raw = adapter.get(SETTINGS_KEY);
@@ -269,6 +294,7 @@ export function loadSettings(adapter: StorageAdapter): Settings {
     const p = JSON.parse(raw) as Partial<Settings>;
     return {
       animations: typeof p.animations === 'boolean' ? p.animations : true,
+      autoRoll: typeof p.autoRoll === 'boolean' ? p.autoRoll : false,
       rollPlaybackMs:
         typeof p.rollPlaybackMs === 'number' && p.rollPlaybackMs >= 0
           ? p.rollPlaybackMs === 600 ? 350 : p.rollPlaybackMs // legacy 600 → Normal

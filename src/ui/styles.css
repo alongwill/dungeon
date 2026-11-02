@@ -102,3 +102,81 @@ kbd {
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
 }
+
+/* roll cards */
+.roll-card { border-left: 3px solid var(--line); padding: 4px 8px; margin: 4px 0; background: var(--panel); }
+.roll-card.crit { border-color: gold; }
+.roll-card.hit, .roll-card.success { border-color: #5a5; }
+.roll-card.miss, .roll-card.failure { border-color: #a55; }
+.rc-header { font-weight: 600; margin: 0; }
+.rc-line { margin: 2px 0 0; display: flex; flex-wrap: wrap; align-items: center; gap: 3px; }
+.rc-outcome.crit { color: gold; } .rc-outcome.hit, .rc-outcome.success { color: #7c7; }
+.rc-outcome.miss, .rc-outcome.failure { color: #d88; }
+/* magic block + result banner + roll prompt */
+.magic { display: inline-flex; gap: 4px; align-items: center; }
+.magic .pips { letter-spacing: 1px; }
+.result-banner { border: 2px solid var(--line); border-radius: 8px; padding: 12px; margin: 8px 0; text-align: center; }
+.result-banner.victory { border-color: #5a5; } .result-banner.defeat, .result-banner.death { border-color: #a55; }
+.result-banner button { margin: 0 4px; }
+.roll-prompt { text-align: center; padding: 6px; }
+.die-land { font-size: 1.5em; animation: diespin 0.5s ease-out; }
+@keyframes diespin { from { transform: rotate(0) scale(0.6); opacity: 0.3; } to { transform: rotate(720deg) scale(1); opacity: 1; } }
+.autoroll { font-size: 0.85em; }
+
+/* vitals row + magic pips + auto-roll switch */
+.vitals { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; }
+.health { display: inline-flex; align-items: center; gap: 5px; color: #d55; }
+.health .dim { color: var(--text-dim); }
+.magic { display: inline-flex; align-items: center; gap: 8px; color: #9ac; }
+.pipgroup { display: inline-flex; gap: 3px; align-items: baseline; }
+.pips { letter-spacing: 2px; }
+.loh .bar { display: inline-block; width: 56px; height: 7px; background: var(--line); border-radius: 4px; vertical-align: middle; margin-left: 4px; }
+.loh .bar i { display: block; height: 100%; background: #d4af37; border-radius: 4px; }
+.switch { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; margin-left: auto; }
+.switch input { position: absolute; opacity: 0; }
+.switch .track { width: 30px; height: 16px; border-radius: 8px; background: var(--line); position: relative; transition: background 0.15s; }
+.switch .track::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #fff; transition: left 0.15s; }
+.switch input:checked + .track { background: #4a7; }
+.switch input:checked + .track::after { left: 16px; }
+@media (max-width: 720px) {
+  .vitals { flex-basis: 100%; order: 3; }
+  .switch { margin-left: 0; }
+}
+
+/* die chips: svg silhouette + centered value + caption */
+.die-chip { display: inline-flex; flex-direction: column; align-items: center; gap: 0; margin-right: 4px; }
+.die-svg { position: relative; display: inline-block; }
+.die-svg svg { display: block; }
+.die-svg b { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 15px; }
+.die-chip i { font-style: normal; font-size: 0.65em; opacity: 0.7; }
+.die-chip.dropped { opacity: 0.4; }
+.die-chip.dropped .die-svg b { text-decoration: line-through; }
+.die-chip.nat20 { color: gold; }
+.die-chip.nat1 { color: #d55; }
+
+/* roll prompt: prominent block in flow under the action bar */
+.roll-prompt { display: flex; align-items: center; gap: 14px; border: 2px solid var(--accent, #4a7); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+.roll-prompt .big-die { flex-shrink: 0; }
+.roll-btn { font-size: 1.05em; padding: 8px 16px; }
+.die-land { font-size: 2em; font-weight: bold; animation: diespin 0.5s ease-out; }
+@keyframes diespin { from { transform: rotate(0) scale(0.5); opacity: 0.2; } to { transform: rotate(720deg) scale(1); opacity: 1; } }
+.armour svg { vertical-align: -2px; margin-right: 2px; }
+
+.ability-label { display: inline-flex; align-items: center; gap: 6px; }
+.ability-label svg { width: 18px; height: 18px; flex-shrink: 0; }
+.ability-label .sr-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.nowrap { white-space: nowrap; }
+/* real switch */
+.switch { display: inline-flex; align-items: center; gap: 8px; background: none; border: none; cursor: pointer; padding: 2px; font: inherit; color: inherit; }
+.switch .track { display: inline-block; width: 34px; height: 18px; border-radius: 9px; background: #3a3f4a; position: relative; transition: background 0.15s; }
+.switch .knob { position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #cfd4dc; transition: left 0.15s; }
+.switch[aria-checked='true'] .track { background: #3d8f57; }
+.switch[aria-checked='true'] .knob { left: 18px; }
+/* die number legibility */
+.die-svg b { font-size: 15px; font-weight: 700; letter-spacing: -0.5px; }
+.die-chip.d4 .die-svg b { padding-top: 10px; }
+.die-chip.d12 .die-svg b { padding-top: 2px; }
+
+.ability-row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.ability-score { font-variant-numeric: tabular-nums; }
+.stat-ico { width: 14px; height: 14px; vertical-align: -2px; margin: 0 1px; }

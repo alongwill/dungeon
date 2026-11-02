@@ -98,6 +98,8 @@ export interface CombatState {
   guidingBoltTarget: string | null;
   /** Set when combat ends; state.ts applies the outcome. */
   result?: 'victory' | 'fled' | 'defeat' | 'death';
+  /** set once endCombat has emitted (stays until continue resolves outcome) */
+  resultApplied?: boolean;
 }
 
 export type PendingOutcome =
@@ -128,13 +130,15 @@ export interface QuestProgress {
   flags: Record<string, FlagValue>;
   visited: string[];
   pending: PendingOutcome | null;
+  startGold: number;
+  startXp: number;
 }
 
 export type GameStatus = 'idle' | 'inQuest' | 'inCombat' | 'dead' | 'questComplete';
 
 export interface LogEntry {
-  text: string;
-  roll?: RollResult;
+  seq: number;
+  event: GameEvent;
 }
 
 export interface GameState {
@@ -144,6 +148,7 @@ export interface GameState {
   quest: QuestProgress | null;
   combat: CombatState | null;
   log: LogEntry[];
+  logSeq: number;
   status: GameStatus;
 }
 
@@ -164,8 +169,15 @@ export type Action =
   | { type: 'levelUp'; asi?: Partial<Record<AbilityId, 1 | 2>> };
 
 export type GameEvent =
-  | { type: 'roll'; label: string; result: RollResult }
-  | { type: 'damage'; target: string; amount: number; damageType?: DamageType }
+  | { type: 'roll'; label: string; result: RollResult;
+      actor: string; actorName: string;
+      purpose: 'attack' | 'damage' | 'save' | 'check' | 'initiative' | 'heal' | 'gold' | 'other';
+      source?: string; targetName?: string;
+      parts: { label: string; value: number }[];
+      finalTotal: number;
+      vs?: { kind: 'armour' | 'difficulty'; value: number };
+      outcome?: 'hit' | 'miss' | 'crit' | 'success' | 'failure' }
+  | { type: 'damage'; target: string; amount: number; damageType?: DamageType; targetName?: string; hpLeft?: number; hpMax?: number }
   | { type: 'heal'; target: string; amount: number }
   | { type: 'narrate'; text: string }
   | { type: 'sceneEnter'; sceneId: string; title: string }
@@ -187,4 +199,4 @@ export interface StepResult {
   events: GameEvent[];
 }
 
-export const LOG_CAP = 200;
+export const LOG_CAP = 500;
