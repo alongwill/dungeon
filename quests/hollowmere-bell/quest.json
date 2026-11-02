@@ -1,0 +1,1307 @@
+{
+  "schemaVersion": 1,
+  "id": "hollowmere-bell",
+  "version": "2.0.0",
+  "title": "The Bell Beneath Hollowmere",
+  "summary": "The silver bell that keeps the marsh-mist out of Hollowmere has been stolen, and the mist is already curling around the doorframes.",
+  "author": "Dungeon",
+  "recommendedLevel": 1,
+  "estimatedMinutes": 35,
+  "start": "village-green",
+  "npcs": {
+    "elder-bron": {
+      "name": "Elder Bron",
+      "title": "Village elder",
+      "avatar": {
+        "seed": 41,
+        "skin": "tan",
+        "hair": "bald",
+        "hairColour": "white",
+        "eyes": "narrow",
+        "mouth": "flat",
+        "accessory": "none",
+        "frame": "npc"
+      }
+    },
+    "shopkeep-pella": {
+      "name": "Pella",
+      "title": "Trader",
+      "avatar": {
+        "seed": 77,
+        "skin": "rose",
+        "hair": "bob",
+        "hairColour": "auburn",
+        "eyes": "bright",
+        "mouth": "grin",
+        "accessory": "freckles",
+        "frame": "npc"
+      }
+    },
+    "smith-tomas": {
+      "name": "Tomas",
+      "title": "Smith",
+      "avatar": {
+        "seed": 55,
+        "skin": "brown",
+        "hair": "crop",
+        "hairColour": "black",
+        "eyes": "narrow",
+        "mouth": "flat",
+        "accessory": "scar",
+        "frame": "npc"
+      }
+    },
+    "widle-of-the-well": {
+      "name": "Widle",
+      "title": "Gossiper",
+      "avatar": {
+        "seed": 63,
+        "skin": "peach",
+        "hair": "bob",
+        "hairColour": "gold",
+        "eyes": "wide",
+        "mouth": "open",
+        "accessory": "none",
+        "frame": "npc"
+      }
+    },
+    "mother-sedge": {
+      "name": "Mother Sedge",
+      "title": "Marsh hermit",
+      "avatar": {
+        "seed": 31,
+        "skin": "umber",
+        "hair": "long",
+        "hairColour": "white",
+        "eyes": "sleepy",
+        "mouth": "flat",
+        "accessory": "circlet",
+        "frame": "npc"
+      }
+    },
+    "goblin-lookout-npc": {
+      "name": "Skritch",
+      "title": "Goblin lookout",
+      "avatar": {
+        "seed": 13,
+        "frame": "enemy",
+        "creature": "goblin"
+      }
+    },
+    "grubnak": {
+      "name": "Grubnak, the Mire King",
+      "avatar": {
+        "seed": 99,
+        "frame": "enemy",
+        "creature": "goblin"
+      }
+    }
+  },
+  "enemies": {
+    "marsh-wolf": {
+      "name": "Marsh Wolf",
+      "avatar": {
+        "seed": 5,
+        "frame": "enemy",
+        "creature": "wolf"
+      },
+      "ac": 9,
+      "hp": "2d6+1",
+      "dex": 15,
+      "passivePerception": 13,
+      "xp": 50,
+      "actions": [
+        {
+          "name": "Bite",
+          "attack": 3,
+          "damage": "1d4+1",
+          "type": "piercing",
+          "weight": 4
+        }
+      ],
+      "morale": {
+        "fleeBelowHpPct": 55
+      }
+    },
+    "goblin-raider": {
+      "name": "Goblin Raider",
+      "avatar": {
+        "seed": 8,
+        "frame": "enemy",
+        "creature": "goblin"
+      },
+      "ac": 11,
+      "hp": "2d6+3",
+      "dex": 14,
+      "passivePerception": 9,
+      "xp": 60,
+      "actions": [
+        {
+          "name": "Scimitar",
+          "attack": 4,
+          "damage": "1d6+2",
+          "type": "slashing",
+          "weight": 3
+        },
+        {
+          "name": "Hurl Pot",
+          "save": {
+            "ability": "DEX",
+            "dc": 11,
+            "half": true
+          },
+          "damage": "1d6",
+          "type": "fire",
+          "recharge": 3,
+          "weight": 1
+        }
+      ],
+      "morale": {
+        "fleeBelowHpPct": 25
+      }
+    },
+    "crypt-skeleton": {
+      "name": "Crypt Skeleton",
+      "avatar": {
+        "seed": 3,
+        "frame": "enemy",
+        "creature": "skeleton"
+      },
+      "ac": 10,
+      "hp": "2d8+4",
+      "dex": 12,
+      "passivePerception": 8,
+      "xp": 75,
+      "undead": true,
+      "immune": [
+        "poison"
+      ],
+      "actions": [
+        {
+          "name": "Rusty Blade",
+          "attack": 3,
+          "damage": "1d6+1",
+          "type": "slashing",
+          "weight": 3
+        }
+      ]
+    },
+    "bog-lurker": {
+      "name": "Bog Lurker",
+      "avatar": {
+        "seed": 44,
+        "frame": "enemy",
+        "creature": "troll"
+      },
+      "ac": 11,
+      "hp": "5d8+4",
+      "dex": 8,
+      "passivePerception": 7,
+      "xp": 80,
+      "actions": [
+        {
+          "name": "Mudclaw",
+          "attack": 5,
+          "damage": "1d8+2",
+          "type": "slashing",
+          "weight": 3
+        }
+      ],
+      "morale": {
+        "fleeBelowHpPct": 40
+      }
+    },
+    "mire-troll": {
+      "name": "Mire Troll",
+      "avatar": {
+        "seed": 21,
+        "frame": "enemy",
+        "creature": "troll"
+      },
+      "ac": 12,
+      "hp": "5d8+4",
+      "dex": 9,
+      "passivePerception": 8,
+      "xp": 150,
+      "resist": [
+        "poison"
+      ],
+      "actions": [
+        {
+          "name": "Club",
+          "attack": 3,
+          "damage": "1d6+1",
+          "type": "bludgeoning",
+          "weight": 3
+        }
+      ],
+      "morale": {
+        "fleeBelowHpPct": 25
+      }
+    },
+    "grubnak-mire-king": {
+      "name": "Grubnak, the Mire King",
+      "avatar": {
+        "seed": 99,
+        "frame": "enemy",
+        "creature": "goblin"
+      },
+      "ac": 11,
+      "hp": "4d8+10",
+      "dex": 14,
+      "saves": {
+        "WIS": 3
+      },
+      "passivePerception": 11,
+      "xp": 200,
+      "actions": [
+        {
+          "name": "Rusty Crownblade",
+          "attack": 4,
+          "damage": "1d6+1",
+          "type": "slashing",
+          "weight": 3
+        },
+        {
+          "name": "Royal Tantrum",
+          "save": {
+            "ability": "WIS",
+            "dc": 12,
+            "half": true
+          },
+          "damage": "1d4+1",
+          "type": "psychic",
+          "weight": 1
+        }
+      ],
+      "phases": [
+        {
+          "belowHpPct": 50,
+          "text": "Grubnak rips the curtain from his throne and wraps it round his shoulders like a war-cape. \"NOW the Mire King fights!\"",
+          "addActions": [
+            {
+              "name": "Swamp Slam",
+              "attack": 6,
+              "damage": "2d6+2",
+              "type": "bludgeoning",
+              "weight": 2
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "items": {
+    "dried-meat": {
+      "name": "Dried Meat",
+      "kind": "consumable",
+      "use": [
+        {
+          "heal": "1d4"
+        }
+      ],
+      "value": 5
+    },
+    "bell-clapper": {
+      "name": "The Bell's Silver Clapper",
+      "kind": "key",
+      "value": 0
+    },
+    "moon-ward-charm": {
+      "name": "Moon-ward Charm",
+      "kind": "key",
+      "value": 0
+    },
+    "chapel-candle": {
+      "name": "Chapel Candle",
+      "kind": "treasure",
+      "value": 12
+    },
+    "marsh-pearl": {
+      "name": "Marsh Pearl",
+      "kind": "treasure",
+      "value": 60
+    },
+    "skeleton-charm": {
+      "name": "Bone Charm",
+      "kind": "treasure",
+      "value": 20
+    },
+    "lurker-scale": {
+      "name": "Lurker Scale",
+      "kind": "treasure",
+      "value": 25
+    },
+    "hermit-moss": {
+      "name": "Sedge Moss Poultice",
+      "kind": "consumable",
+      "use": [
+        {
+          "heal": "1d6+1"
+        }
+      ],
+      "value": 10
+    }
+  },
+  "scenes": {
+    "village-green": {
+      "type": "narration",
+      "title": "Hollowmere, at dawn",
+      "text": "The village of Hollowmere squats at the marsh's edge like a hen over eggs. This morning the eggs are cracking: the silver bell is gone from its little shrine beneath the village oak, and without its toll the mist creeps in off the water, grey and patient, curling around the doorframes as if it owns them.\n\n{{hero.name}} stands on the green while worried villagers go about their day badly \u2014 sweeping already-clean steps, fetching water they don't need, all for an excuse to glance at the marsh.\n\nA hundred years the bell has rung at dusk. Last night it didn't, and nobody slept.",
+      "rest": "long",
+      "choices": [
+        {
+          "text": "Speak with Elder Bron",
+          "goto": "elder"
+        },
+        {
+          "text": "Visit Mother Sedge, the marsh hermit",
+          "goto": "hermit-hut"
+        },
+        {
+          "text": "Visit Pella's stall (shop)",
+          "goto": "shop"
+        },
+        {
+          "text": "Visit Tomas the smith",
+          "goto": "smithy"
+        },
+        {
+          "text": "Ask around the well",
+          "goto": "the-well"
+        },
+        {
+          "text": "Take the marsh road",
+          "goto": "marsh-road"
+        }
+      ]
+    },
+    "elder": {
+      "type": "dialogue",
+      "title": "Elder Bron",
+      "speaker": "elder-bron",
+      "text": "\"A hundred years that bell has tolled at dusk, and a hundred years the mist has kept to its side of the water. My grandmother swore the bell didn't chase it \u2014 it *asked* it back, politely, every evening. Mist respects good manners.\n\nLast night someone \u2014 something \u2014 took it. Tracks lead east, into the marsh, and there's talk of a goblin band camped out that way under a mud-crowned chief.\n\nBring it back, {{hero.name}}, and Hollowmere will pay 150 gold and remember you kindly. Which is worth more, some days.\"",
+      "choices": [
+        {
+          "text": "\"Where exactly would a thief take a bell?\"",
+          "goto": "elder-clue"
+        },
+        {
+          "text": "\"I'll find it.\" (Head out)",
+          "goto": "marsh-road"
+        }
+      ]
+    },
+    "elder-clue": {
+      "type": "dialogue",
+      "title": "What the elder knows",
+      "speaker": "elder-bron",
+      "text": "\"Wolves range the marsh road \u2014 mind them. Hungry this time of year. If you keep your wits they may keep theirs; if not, well, you look like a meal.\n\nPast the road there's a drowned chapel, halfway to nowhere. Our founders built it before the marsh ate the lower field. Beyond that is a goblin camp by the flooded crypt \u2014 they answer to some chief who calls himself the Mire King. Bells are shiny, and goblins are goblins.\n\nOld Mother Sedge lives on a hummock off the road \u2014 half-hermit, half-witch, all trouble. She knows the marsh better than the mist does. Might be worth a visit, might be a wasted hour. Her moods run to weather.\"",
+      "choices": [
+        {
+          "text": "Take the marsh road",
+          "goto": "marsh-road"
+        },
+        {
+          "text": "Stop at Pella's stall first",
+          "goto": "shop"
+        },
+        {
+          "text": "Stop at the smithy first",
+          "goto": "smithy"
+        }
+      ]
+    },
+    "shop": {
+      "type": "dialogue",
+      "title": "Pella's stall",
+      "speaker": "shopkeep-pella",
+      "text": "\"Adventuring gear, reasonably priced, only slightly damp! Potions, provisions, and one very lucky spoon.\n\nOff to the marsh then? Take dried meat \u2014 wolves will follow a sausage anywhere, and it's a lot cheaper than dying.\"",
+      "choices": [
+        {
+          "text": "Buy a Potion of Healing (50 gp)",
+          "requires": {
+            "gold": {
+              "gte": 50
+            }
+          },
+          "goto": "shop",
+          "effects": [
+            {
+              "gold": -50
+            },
+            {
+              "addItem": "potion-healing"
+            }
+          ]
+        },
+        {
+          "text": "Buy dried meat for the road (5 gp)",
+          "requires": {
+            "gold": {
+              "gte": 5
+            }
+          },
+          "goto": "shop",
+          "effects": [
+            {
+              "gold": -5
+            },
+            {
+              "addItem": "dried-meat"
+            }
+          ]
+        },
+        {
+          "text": "Buy a lucky spoon (2 gp)",
+          "requires": {
+            "gold": {
+              "gte": 2
+            }
+          },
+          "goto": "shop",
+          "effects": [
+            {
+              "gold": -2
+            },
+            {
+              "setFlag": "lucky-spoon",
+              "value": true
+            }
+          ]
+        },
+        {
+          "text": "\"Just browsing.\" (Leave)",
+          "goto": "village-green"
+        }
+      ]
+    },
+    "smithy": {
+      "type": "dialogue",
+      "title": "The smithy",
+      "speaker": "smith-tomas",
+      "text": "Tomas the smith is built like his own anvil and twice as cheerful. He turns a horseshoe on the fire and gives it a look of deep personal disappointment.\n\n\"Bell's gone, I hear. My grandfather's grandfather re-forged that bell the last time it cracked \u2014 took silver from three churches' worth of candelabra. Sacred metal, that. If goblins have it they'll have strung it up like a war-trophy, not melted it. Too proud of it.\n\nYou'll want your edge checked before you go? No charge for bell-rescuers.\"",
+      "choices": [
+        {
+          "text": "Tomas runs a thumb down your blade, corrects the grip in your hand without being asked, and sends you off feeling measurably more dangerous.",
+          "goto": "village-green",
+          "effects": [
+            {
+              "xp": 10
+            }
+          ]
+        },
+        {
+          "text": "\"Any advice for the marsh?\"",
+          "goto": "smithy-advice"
+        },
+        {
+          "text": "Back to the green",
+          "goto": "village-green"
+        }
+      ]
+    },
+    "smithy-advice": {
+      "type": "dialogue",
+      "title": "Smith's advice",
+      "speaker": "smith-tomas",
+      "text": "\"Three things. One: the marsh eats iron. Keep your blade oiled and wrapped when you can. Two: goblins are cowards one-to-one and heroes three-to-one \u2014 never let them count you. Three: the Mire King \u2014 if he's real \u2014 is still a goblin. Goblins deal. Find out what he wants that isn't a fight, and you might walk out with the bell and your skin both.\"",
+      "choices": [
+        {
+          "text": "Back to the green",
+          "goto": "village-green"
+        }
+      ]
+    },
+    "the-well": {
+      "type": "dialogue",
+      "title": "By the well",
+      "speaker": "widle-of-the-well",
+      "text": "Widle of-the-well \u2014 so called because she never strays from it \u2014 intercepts you before your foot lands twice.\n\n\"The BELL? Oh yes, everyone knows. Wasn't the first thing to go missing, mind. Eda's pie went last week. And a goose. And \u2014 some say \u2014 the miller's cat, though the miller says the cat left voluntarily, which tells you everything about that household.\n\nNow, about the marsh: everyone says 'goblins', but *I* heard the mist singing two nights before the bell went. Singing! Draw your own conclusions, {{hero.class}}.\"",
+      "choices": [
+        {
+          "text": "Listen closely \u2014 is she lying about the singing?",
+          "check": {
+            "skill": "insight",
+            "dc": 12
+          },
+          "success": {
+            "goto": "the-well-truth",
+            "effects": [
+              {
+                "xp": 25
+              }
+            ],
+            "text": "Her eyes go wet and far away when she mentions the singing. Whatever Widle heard, she believes every word \u2014 and it frightened her badly enough to repeat it."
+          },
+          "failure": {
+            "goto": "the-well-truth",
+            "text": "Widle talks the way water flows downhill \u2014 impossible to interrupt and ending where it wants anyway. You learn the goose's name (Maurice) and little else."
+          }
+        },
+        {
+          "text": "Back to the green",
+          "goto": "village-green"
+        }
+      ]
+    },
+    "the-well-truth": {
+      "type": "dialogue",
+      "title": "One more thing",
+      "speaker": "widle-of-the-well",
+      "text": "\"And another thing \u2014 if you're going through the marsh, look for the lanterns. Mother Sedge hangs blue lanterns where the ground is firm. Blue light, safe ground; grey light, you sink. She taught me that when I was a girl, before she went strange.\n\nWell. Stranger.\"",
+      "choices": [
+        {
+          "text": "Take the marsh road",
+          "goto": "marsh-road"
+        },
+        {
+          "text": "Back to the green",
+          "goto": "village-green"
+        }
+      ]
+    },
+    "marsh-road": {
+      "type": "check",
+      "title": "The marsh road",
+      "text": "The road is more of an apology than a road: planks over black water, reeds as tall as your shoulder, and a smell like yesterday's argument. Somewhere to the left a crow laughs at a joke only it understands.\n\nThere is a shorter way \u2014 the old causeway, drowned to the ankle, that the locals use when they're in a hurry. Finding it means reading the water. Blue lantern-light winks off to the right; grey haze sits everywhere else.",
+      "check": {
+        "skill": "survival",
+        "dc": 13
+      },
+      "success": {
+        "goto": "causeway-cross",
+        "effects": [
+          {
+            "setFlag": "shortcut",
+            "value": true
+          }
+        ],
+        "text": "You find the old causeway, stones sitting just under the water's skin like a spine. Blue lantern-glow marks the good footing \u2014 Widle's tip was worth the goose story."
+      },
+      "failure": {
+        "goto": "wolf-approach",
+        "effects": [
+          {
+            "damage": "1d6",
+            "type": "bludgeoning"
+          }
+        ],
+        "text": "The plank you choose is the wrong plank. You go knee-deep into marsh water that has opinions about visitors, and climb out heavier, wetter and humbler. No causeway in sight \u2014 you'll take the long way."
+      }
+    },
+    "causeway-cross": {
+      "type": "check",
+      "title": "The sunken causeway",
+      "text": "The causeway is no wider than a roof-ridge and slick with weed. Below the water, pale shapes drift that you choose not to name. Ahead, the chapel bell-roof leans into view through the reeds.\n\nCrossing dry-footed will take balance \u2014 or nerve.",
+      "check": {
+        "skill": "athletics",
+        "dc": 13,
+        "advantageIf": {
+          "class": [
+            "fighter",
+            "rogue",
+            "ranger",
+            "druid",
+            "bard"
+          ]
+        }
+      },
+      "success": {
+        "goto": "chapel",
+        "effects": [
+          {
+            "xp": 25
+          }
+        ],
+        "text": "You cross like a heron with somewhere to be, quick feet on slick stone, and gain the far bank dry as toast."
+      },
+      "failure": {
+        "goto": "chapel",
+        "effects": [
+          {
+            "damage": "1d6",
+            "type": "bludgeoning"
+          }
+        ],
+        "text": "Halfway across, a stone shifts and you meet the water. It's cold, it's personal, and something brushes your boot that you will not be discussing later. You haul out by the chapel's graveyard wall."
+      }
+    },
+    "hermit-hut": {
+      "type": "dialogue",
+      "title": "Mother Sedge's hummock",
+      "speaker": "mother-sedge",
+      "text": "A hut of woven willow sits on a dry knoll off the road, blue lanterns strung from its eaves. Mother Sedge herself is small, grey-wrapped, and stirring a pot that smells of moss and intent.\n\n\"{{hero.name}},\" she says without turning, which is unsettling. \"Come for the bell, like the mist said you would. The mist tells me things. Lies, mostly, but consistent ones.\n\nThe Mire King took it \u2014 not for its ring, child. For its silence. A bell that doesn't toll keeps the mist free to wander where it pleases. My knee hurts something cruel this week, or I'd have fetched it myself and saved everyone the worry.\"",
+      "choices": [
+        {
+          "text": "Tend her knee",
+          "check": {
+            "skill": "medicine",
+            "dc": 12
+          },
+          "success": {
+            "goto": "hermit-favour",
+            "effects": [
+              {
+                "xp": 30
+              }
+            ],
+            "text": "Your fingers find the angry joint quickly enough. She hisses, then sighs like a kettle coming off the boil. \"Competent hands. Rare, that.\" She looks at you properly for the first time, and her eyes are kinder than her reputation."
+          },
+          "failure": {
+            "goto": "hermit-favour",
+            "text": "You prod the joint; she yelps and smacks your knuckles with the ladle. \"Hands like a troll's wedding. Fine \u2014 I'll do it myself.\" Despite the fuss, she seems faintly pleased someone tried."
+          }
+        },
+        {
+          "text": "Ask plainly what the Mire King fears",
+          "check": {
+            "skill": "persuasion",
+            "dc": 13
+          },
+          "success": {
+            "goto": "hermit-favour",
+            "text": "\"Plainly! Refreshing. Very well.\" She taps her ladle against the pot. \"The boy is a magpie with a crown. Take that away and he's just noise.\""
+          },
+          "failure": {
+            "goto": "hermit-hut",
+            "text": "\"Asking plainly gets you a plain answer: he fears nothing. Fearing takes imagination, and he spent all of his on the crown.\""
+          }
+        },
+        {
+          "text": "Leave her to her pot",
+          "goto": "marsh-road"
+        }
+      ]
+    },
+    "hermit-favour": {
+      "type": "dialogue",
+      "title": "The hermit's price",
+      "speaker": "mother-sedge",
+      "text": "Mother Sedge rummages in a basket and produces a charm of woven sedge strung with a bead of river-moonstone, pale as a thumbnail.\n\n\"Moon-ward, the old priest called these \u2014 he made them before he went holy-mad and wandered off. Grubnak believes them *powerful*. He was raised on chapel stories, poor lamb: moon-charms frighten him half to death. Show him that, and even if it's as magical as a teacup, you'll have his attention.\n\nTake a poultice too. You'll need it or you won't, but either way it's off my shelf.\"",
+      "choices": [
+        {
+          "text": "Take the charm and go",
+          "goto": "marsh-road",
+          "effects": [
+            {
+              "addItem": "moon-ward-charm"
+            },
+            {
+              "addItem": "hermit-moss"
+            }
+          ]
+        }
+      ]
+    },
+    "wolf-approach": {
+      "type": "narration",
+      "title": "Eyes in the reeds",
+      "text": "Three lean shapes detach themselves from the reeds and fan out across the road \u2014 marsh wolves, ribs showing through winter coats, hunger in their posture like a taut bowstring. They haven't charged yet. They're deciding whether you're worth the teeth.\n\nThe lead wolf's ears twitch at every reed-creak. Whatever decides this, it will be fast.",
+      "choices": [
+        {
+          "text": "Speak low and steady \u2014 calm the pack",
+          "requires": {
+            "class": [
+              "druid",
+              "ranger"
+            ]
+          },
+          "check": {
+            "skill": "survival",
+            "dc": 12
+          },
+          "success": {
+            "goto": "chapel",
+            "effects": [
+              {
+                "xp": 75
+              }
+            ],
+            "text": "You let your voice drop into the register of pack and patience \u2014 the sound their mothers made before they knew fear. The lead wolf holds your gaze a long moment, reading something you can't see yourself. Then, all at once, the three of them melt back into the reeds like grey water."
+          },
+          "failure": {
+            "goto": "wolf-fight",
+            "text": "The lead wolf flattens its ears. Whatever register you hit, it was the wrong one \u2014 perhaps 'lunch'. Diplomacy is over."
+          }
+        },
+        {
+          "text": "You lob the meat wide of the road. Three muzzles turn as one \u2014 wolves will follow food anywhere, and Pella's dried meat is, apparently, exactly that. You walk on unmolested, smelling faintly of sausage.",
+          "requires": {
+            "hasItem": "dried-meat"
+          },
+          "goto": "chapel",
+          "effects": [
+            {
+              "removeItem": "dried-meat"
+            },
+            {
+              "xp": 50
+            }
+          ]
+        },
+        {
+          "text": "Draw your weapon and stand your ground",
+          "goto": "wolf-fight"
+        }
+      ]
+    },
+    "wolf-fight": {
+      "type": "encounter",
+      "title": "The pack charges",
+      "text": "The lead wolf commits, and the others follow \u2014 three grey streaks through the reeds, all teeth and trajectory. No more deciding.",
+      "enemies": [
+        {
+          "enemy": "marsh-wolf",
+          "count": 3
+        }
+      ],
+      "canFlee": true,
+      "fleeDC": 12,
+      "victory": {
+        "goto": "chapel",
+        "text": "The last wolf limps yelping into the marsh. The road is yours \u2014 for what a marsh road is worth."
+      },
+      "flee": {
+        "goto": "village-green",
+        "text": "You back away slowly, and the wolves, satisfied, let you. Hollowmere feels very quiet on the walk back."
+      },
+      "defeat": {
+        "goto": "dragged-clear",
+        "text": "Teeth, mud, darkness \u2014 then nothing."
+      }
+    },
+    "dragged-clear": {
+      "type": "ending",
+      "outcome": "defeat",
+      "xp": 25,
+      "title": "Dragged clear",
+      "text": "You wake on the green at dusk. The miller found you on the road and dragged you home \u2014 his price is a modest lecture and your boots being full of marsh.\n\nThe mist is a little thicker tonight, curling round the well like it has questions.",
+      "epilogue": "The bell is still out there somewhere. So are your boots' missing soles."
+    },
+    "chapel": {
+      "type": "narration",
+      "title": "The drowned chapel",
+      "text": "The chapel leans out of the marsh like a drunk on a fencepost, its stones green to the waist. Inside, the pews have rotted to lace, and light falls through the collapsed roof in pale pillars onto the altar stone.\n\nSomething glints beneath the altar's lip. Above it, carved into the wall in a hand that cared deeply about getting it right, is an inscription \u2014 and beneath it, a small riddle-box of weathered wood.",
+      "choices": [
+        {
+          "text": "Search the chapel carefully",
+          "check": {
+            "skill": "investigation",
+            "dc": 12
+          },
+          "success": {
+            "goto": "chapel-loot",
+            "text": "Under the altar's lip, wrapped in oilcloth: the bell's silver clapper \u2014 and a scratched confession: *took the bell for the Mire King, gods forgive me, the mist sings to him now. I traded my penance for his protection.*"
+          },
+          "failure": {
+            "goto": "chapel-carving",
+            "text": "You find only damp, a family of unimpressed frogs, and the sense that whatever was hidden here has walked off \u2014 recently, judging by the tracks heading deeper into the marsh. The carving on the wall, at least, isn't going anywhere."
+          }
+        },
+        {
+          "text": "Study the carved inscription",
+          "check": {
+            "skill": "arcana",
+            "dc": 12
+          },
+          "success": {
+            "goto": "chapel-carving",
+            "text": "Beneath the moss, runes: not a blessing but an *instruction*. Whoever built this place knew the marsh would come for it eventually \u2014 and prepared accordingly."
+          },
+          "failure": {
+            "goto": "chapel-carving",
+            "text": "The runes might as well be decorative moss. You make out one word \u2014 *ward* \u2014 before the pattern dissolves into nonsense."
+          }
+        },
+        {
+          "text": "Press on toward the crypt",
+          "goto": "lookout-approach"
+        }
+      ]
+    },
+    "chapel-carving": {
+      "type": "narration",
+      "title": "The chapel wall",
+      "text": "The inscription, cleaned of moss, reads: *When the mist walks free, the bell must ring. When the bell is taken, ward the moon.*\n\nBelow it sits a riddle-box of weathered wood, still sealed after all these years \u2014 a small stone disc painted with a crescent moon turns on its face. The mechanism wants a specific answer.",
+      "choices": [
+        {
+          "text": "Try to open the riddle-box",
+          "check": {
+            "skill": "arcana",
+            "dc": 13
+          },
+          "success": {
+            "goto": "chapel-charm",
+            "text": "You turn the crescent through its phases, matching each to a scratched rune \u2014 and the box clicks open like a sigh. Inside, wrapped in dry wool after all these years: a moon-ward charm, silver-bright."
+          },
+          "failure": {
+            "goto": "chapel",
+            "text": "You work the crescent back and forth until your fingers ache. The box stays shut, smug as a banker."
+          }
+        },
+        {
+          "text": "Ward-script \u2014 you studied this. Old Hollowmere liturgy, first-era. You turn the crescent to the waning phase the rune demands, and the box opens like it had been waiting politely.",
+          "requires": {
+            "class": [
+              "wizard",
+              "cleric"
+            ]
+          },
+          "goto": "chapel-charm"
+        },
+        {
+          "text": "Leave it and move on",
+          "goto": "lookout-approach"
+        }
+      ]
+    },
+    "chapel-charm": {
+      "type": "loot",
+      "title": "The moon-ward",
+      "text": "Inside the box, a charm of woven sedge and moonstone \u2014 twin to the kind the old marsh-hermits carry. Goblins raised on chapel stories believe these things burn holes in shadows.",
+      "items": [
+        {
+          "item": "moon-ward-charm"
+        }
+      ],
+      "next": {
+        "goto": "chapel-loot"
+      }
+    },
+    "chapel-loot": {
+      "type": "loot",
+      "title": "The altar's cache",
+      "text": "Alongside the clapper, the thief \u2014 or a penitent priest \u2014 left a small dry bundle of supplies tucked where the water couldn't reach.",
+      "gold": "1d6+4",
+      "items": [
+        {
+          "item": "bell-clapper"
+        },
+        {
+          "item": "chapel-candle"
+        },
+        {
+          "item": "dried-meat"
+        }
+      ],
+      "next": {
+        "goto": "lookout-approach"
+      }
+    },
+    "lookout-approach": {
+      "type": "dialogue",
+      "title": "The goblin lookout",
+      "speaker": "goblin-lookout-npc",
+      "text": "A lone goblin sits on a stump before a rope bridge, sharpening a fish knife with great ceremony and zero skill. A second stump nearby suggests he occasionally has company. Today it's just him, a dragonfly he's arguing with, and the bridge that leads to the camp.\n\n\"No passage!\" he squeaks at your approach. \"Bridge is for the Mire King's court only. Unless you're, um. Guests. Very important guests. Which you're obviously not, on account of not having a gift.\"",
+      "choices": [
+        {
+          "text": "\"Important guests. Extremely important. Stand aside.\"",
+          "check": {
+            "skill": "deception",
+            "dc": 12
+          },
+          "success": {
+            "goto": "crypt-approach",
+            "text": "Skritch snaps a salute so sharp he nearly drops his knife. \"Court's that way, your importances. Mind the third board \u2014 it's a traitor.\" He even holds the rope rail for you."
+          },
+          "failure": {
+            "goto": "lookout-fight",
+            "text": "Skritch squints. \"Nope. Guests bring *cake*.\" He whistles shrilly \u2014 and answers himself with drawn steel."
+          }
+        },
+        {
+          "text": "Slip past through the reeds",
+          "check": {
+            "skill": "stealth",
+            "dc": 13
+          },
+          "success": {
+            "goto": "crypt-approach",
+            "text": "You ghost through the reeds while Skritch argues with the dragonfly \u2014 the argument is going badly for him, which helps you. The rope bridge creaks once, politely, and lets you pass."
+          },
+          "failure": {
+            "goto": "lookout-fight",
+            "text": "Your foot finds the one loud reed in the marsh. Skritch spins round, knife first, offended in a deeply personal way."
+          }
+        },
+        {
+          "text": "Strike up a goblin drinking-song",
+          "requires": {
+            "class": [
+              "bard"
+            ]
+          },
+          "check": {
+            "skill": "performance",
+            "dc": 11
+          },
+          "success": {
+            "goto": "crypt-approach",
+            "effects": [
+              {
+                "xp": 40
+              }
+            ],
+            "text": "You launch into 'Gobbo the Gobble' in passable Goblin. Skritch drops his knife and joins the second verse \u2014 he knows the harmony, the harmony knows him. By the third verse he's waving you over the bridge like an old friend. \"Tell the King Skritch sent ye!\" he calls after you. \"He'll hate that!\""
+          },
+          "failure": {
+            "goto": "lookout-fight",
+            "text": "Your Goblin is a dialect too far south, and it shows. Skritch listens politely, wincing at the chorus, then draws. \"Nobody sings it *that* bad. Intruder!\""
+          }
+        },
+        {
+          "text": "\"Let me pass, or this ends badly for you.\"",
+          "check": {
+            "skill": "intimidation",
+            "dc": 13
+          },
+          "success": {
+            "goto": "crypt-approach",
+            "text": "You let the weight of it sit in your voice. Skritch looks at you, at the knife, at you again, and makes the correct decision. \"Bridge is right there, friend. Always was.\" He waves you through with a grin that is mostly fear."
+          },
+          "failure": {
+            "goto": "lookout-fight",
+            "text": "Skritch puffs up, which given his size is still not very up. \"The Mire King says NOBODY passes! And Skritch obeys the King!\" He whistles for help."
+          }
+        },
+        {
+          "text": "Rush him",
+          "goto": "lookout-fight"
+        }
+      ]
+    },
+    "lookout-fight": {
+      "type": "encounter",
+      "title": "Bridge guards",
+      "text": "Skritch yells for help and gets it \u2014 two raiders pile out of a reed hovel, blades first, looking entirely too eager.",
+      "enemies": [
+        {
+          "enemy": "goblin-raider",
+          "count": 2
+        }
+      ],
+      "canFlee": true,
+      "fleeDC": 12,
+      "victory": {
+        "goto": "crypt-approach",
+        "text": "The raiders splash into the marsh and swim for it, still arguing about whose fault this was. Skritch is gone \u2014 the lookout has abandoned his post with impressive speed."
+      },
+      "flee": {
+        "goto": "village-green",
+        "text": "You retreat over the causeway, arrows \u2014 well, pots \u2014 falling around you."
+      },
+      "defeat": {
+        "goto": "dragged-clear",
+        "text": "A pot, a flash of fire, and then nothing."
+      }
+    },
+    "crypt-approach": {
+      "type": "narration",
+      "title": "The flooded crypt",
+      "text": "Beyond the bridge the ground rises onto a hummock crowned by a sunken mausoleum \u2014 and ahead, strung between two dead willows, hangs the strangest sight in the marsh: a rough log palace with a throne visible through the doorway, and above it, on a gibbet of woven reeds, the bell of Hollowmere.\n\nIt hangs silent, catching what little light the marsh allows. Even at a distance, {{hero.name}} can see it's not been melted or defiled \u2014 just\u2026 hung. A trophy.\n\nThe crypt stairs gape darkly to your left. Something glitters down there. So do the bones. And a reed-bed runs around the back of the camp \u2014 thin cover, but cover.",
+      "choices": [
+        {
+          "text": "Investigate the bubbling bog-pool first",
+          "check": {
+            "skill": "perception",
+            "dc": 12
+          },
+          "success": {
+            "goto": "bog-lurker-scene",
+            "text": "The pool's surface isn't quite still. Something in it is breathing \u2014 slowly, wrong-footedly, like it's pretending to be a rock and doing a poor job."
+          },
+          "failure": {
+            "goto": "crypt-approach",
+            "text": "Just a pool. Probably. You move on, telling yourself the water's breathing is none of your business."
+          }
+        },
+        {
+          "text": "Descend into the crypt",
+          "goto": "crypt-fight"
+        },
+        {
+          "text": "Sneak round the reed-bed to the camp's back door",
+          "goto": "reed-sneak"
+        },
+        {
+          "text": "Go straight to the Mire King's door",
+          "goto": "boss-door"
+        }
+      ]
+    },
+    "bog-lurker-scene": {
+      "type": "encounter",
+      "title": "The bog's tenant",
+      "text": "The 'rock' unfolds itself: a bog-lurker, all mud and malice, hauling itself up out of the pool with a sound like a curse.",
+      "enemies": [
+        {
+          "enemy": "bog-lurker"
+        }
+      ],
+      "canFlee": true,
+      "fleeDC": 12,
+      "victory": {
+        "goto": "bog-loot",
+        "text": "The lurker collapses back into its pool with a sound of deep regret. Under a half-sunk stone it was guarding: a marsh pearl the size of a robin's egg."
+      },
+      "flee": {
+        "goto": "crypt-approach",
+        "text": "You back away from the pool. The lurker watches you go with the deep satisfaction of a thing that has won by default."
+      },
+      "defeat": {
+        "goto": "dragged-clear",
+        "text": "Mud, claws, cold water \u2014 then nothing."
+      }
+    },
+    "bog-loot": {
+      "type": "loot",
+      "title": "The lurker's hoard",
+      "text": "A bog-lurker's treasures: half a marsh pearl, and a lurker scale hard as flint.",
+      "items": [
+        {
+          "item": "marsh-pearl"
+        },
+        {
+          "item": "lurker-scale"
+        }
+      ],
+      "next": {
+        "goto": "crypt-approach"
+      }
+    },
+    "reed-sneak": {
+      "type": "check",
+      "title": "The back way",
+      "text": "The reed-bed is thin cover but the goblin camp's back has no watch \u2014 the Mire King keeps his eyes front, where the threats are supposed to come from. Wading through will take quiet feet and quieter breathing.",
+      "check": {
+        "skill": "stealth",
+        "dc": 14
+      },
+      "success": {
+        "goto": "boss-door",
+        "effects": [
+          {
+            "xp": 50
+          }
+        ],
+        "text": "You slip through the reeds like a rumour. One goblin sentry walks past within arm's reach, humming tunelessly, and never looks down."
+      },
+      "failure": {
+        "goto": "boss-door",
+        "effects": [
+          {
+            "damage": "1d6",
+            "type": "bludgeoning"
+          }
+        ],
+        "text": "A reed snaps under your knee like a firework. You freeze, hold your breath, and wade the last stretch while a sentry peers vaguely your way and decides the marsh made the noise. You're in \u2014 but soaked and rattled."
+      }
+    },
+    "crypt-fight": {
+      "type": "encounter",
+      "title": "Bones of the crypt",
+      "text": "The dead of Hollowmere's founders do not appreciate visitors. Two skeletons rise from the flooded niches, all jaw and grievance, rust-blades held with the easy confidence of things that have nothing left to lose.",
+      "enemies": [
+        {
+          "enemy": "crypt-skeleton",
+          "count": 2
+        }
+      ],
+      "canFlee": true,
+      "fleeDC": 12,
+      "victory": {
+        "goto": "crypt-loot",
+        "text": "The last skull rolls down the steps and comes to rest, looking \u2014 if skulls can look \u2014 mildly embarrassed."
+      },
+      "flee": {
+        "goto": "crypt-approach",
+        "text": "You back out of the crypt, bones clattering disapprovingly behind you."
+      },
+      "defeat": {
+        "goto": "dragged-clear",
+        "text": "The bones are very thorough. You wake later, outside."
+      }
+    },
+    "crypt-loot": {
+      "type": "loot",
+      "title": "The founders' rest",
+      "text": "In the driest niche, a founder's coffer \u2014 and beside it, a bone charm carved with the same ward-script as the chapel. Someone protected this place once.",
+      "gold": "3d6+10",
+      "items": [
+        {
+          "item": "marsh-pearl"
+        },
+        {
+          "item": "skeleton-charm"
+        },
+        {
+          "item": "potion-healing"
+        }
+      ],
+      "next": {
+        "goto": "boss-door"
+      }
+    },
+    "boss-door": {
+      "type": "dialogue",
+      "title": "The Mire King's court",
+      "speaker": "grubnak",
+      "text": "Grubnak, the Mire King, lounges on a throne of driftwood draped in marsh-silk, a crown of bottle-green glass on his head. A troll the size of a haystack dozes beside him, one eye open, one massive hand draped over the arm of the throne.\n\n\"Kneel,\" the king says grandly, \"or don't \u2014 the floor's wet anyway. You want the bell? It's *my* bell now. It sings to the mist, and the mist sings back. Beautiful. Haunting. Mine.\n\nYou can offer something better, or you can fight the troll. Choose wisely \u2014 the troll hasn't lost in weeks.\"",
+      "choices": [
+        {
+          "text": "Reason with him \u2014 the mist will drown them too",
+          "check": {
+            "skill": "persuasion",
+            "dc": 16
+          },
+          "success": {
+            "goto": "peace-ending",
+            "text": "You talk of shared roads and shared drownings, of a king who rules mud versus a neighbour who rules respect. Grubnak's eyes glisten behind the glass crown. \"...The mist DOES get in everything,\" he admits at last. \"Gets in the throne. Gets in the food. Gets in the *dignity*.\""
+          },
+          "failure": {
+            "goto": "boss-fight",
+            "text": "\"Poetry,\" sneers the king, \"but I have a troll.\" He snaps his fingers."
+          }
+        },
+        {
+          "text": "\"Hand it over, or we take the crown too.\"",
+          "check": {
+            "skill": "intimidation",
+            "dc": 16
+          },
+          "success": {
+            "goto": "peace-ending",
+            "text": "You let the promise hang in the air like storm-light. The troll opens its other eye, weighs you up with something that might be professional respect, and goes deliberately back to sleep. Grubnak deflates. \"Fine. FINE. A king knows when a deal is a deal.\""
+          },
+          "failure": {
+            "goto": "boss-fight",
+            "text": "Grubnak laughs until the crown rattles. \"Take it? TAKE it?! Maul them, lads.\""
+          }
+        },
+        {
+          "text": "You lift the clapper, and it catches the grey light. Grubnak goes very still. \"That... that was my penance, little one. The priest took it for safe-keeping, before he went mad in the mist.\" He sighs, small and muddy. \"A bell without a voice is just a bucket. Take it \u2014 take it home. Just tell them the Mire King was *magnanimous*.\"",
+          "requires": {
+            "hasItem": "bell-clapper"
+          },
+          "goto": "peace-ending"
+        },
+        {
+          "text": "You raise the charm, and it catches the marsh-light \u2014 silver-bright, old as the chapel. Grubnak's eyes go wide as saucers behind the crown. He knows what it is; more importantly, he *believes* what it is. \"Put that away\u2014 put it AWAY,\" he hisses. \"Take the bell. Take it and take the charm and go, before the moon-ward does whatever moon-wards do to kings of goblins.\"",
+          "requires": {
+            "hasItem": "moon-ward-charm"
+          },
+          "goto": "peace-ending"
+        },
+        {
+          "text": "Invoke your oath \u2014 this mist cannot stand",
+          "requires": {
+            "class": [
+              "paladin"
+            ]
+          },
+          "check": {
+            "skill": "persuasion",
+            "dc": 14
+          },
+          "success": {
+            "goto": "peace-ending",
+            "text": "You speak your oath like a drawn blade, and the marsh seems to listen. Grubnak, raised on chapel stories and fireside warnings, recognises the cadence of a paladin's vow \u2014 and more importantly, recognises what it costs to break one. \"A sworn oath,\" he mutters. \"Can't argue with a sworn oath. Take it.\""
+          },
+          "failure": {
+            "goto": "boss-fight",
+            "text": "Grubnak tilts his head, unimpressed by holy pronouncements. \"Sworn oaths. Very dramatic. The troll doesn't believe in oaths.\" He waves you toward the troll like a tour guide."
+          }
+        },
+        {
+          "text": "Attack",
+          "goto": "boss-fight"
+        }
+      ]
+    },
+    "boss-fight": {
+      "type": "encounter",
+      "title": "The court of the Mire King",
+      "text": "The troll unfolds to its full height \u2014 easily twice yours. Grubnak leaps from his throne, crownblade singing. There is nowhere left to run \u2014 not that you were planning to.",
+      "enemies": [
+        {
+          "enemy": "grubnak-mire-king"
+        },
+        {
+          "enemy": "mire-troll"
+        }
+      ],
+      "canFlee": false,
+      "victory": {
+        "goto": "bell-recovered",
+        "text": "The Mire King's crown rolls to a stop against your boot. His court has melted into the reeds. The bell hangs above you, quiet, waiting to go home."
+      },
+      "defeat": {
+        "goto": "captured-ending",
+        "text": "The last thing you see is the troll's fist. The first thing you feel, later, is rope."
+      }
+    },
+    "bell-recovered": {
+      "type": "narration",
+      "title": "The bell is yours",
+      "text": "You cut the silver bell down from its reed gibbet. It's heavier than it looks \u2014 bells always are \u2014 and cool to the touch, as if it remembers every dusk it ever rang.\n\nOn the road back, a merchant's wagon squelches up beside you. The driver eyes the bell, then your scars, then the bell again, and makes an offer that's honestly quite flattering. Marsh-silver, he says, fetches a pretty price on the coast.\n\nHollowmere's smoke is just visible over the rise.",
+      "choices": [
+        {
+          "text": "Carry the bell home to Hollowmere",
+          "goto": "victory-ending"
+        },
+        {
+          "text": "Sell the bell to the merchant (150 gp)",
+          "goto": "sell-ending",
+          "effects": [
+            {
+              "gold": 150
+            }
+          ]
+        }
+      ]
+    },
+    "victory-ending": {
+      "type": "ending",
+      "outcome": "victory",
+      "xp": 300,
+      "onEnter": [
+        {
+          "gold": 150
+        }
+      ],
+      "title": "The bell rings out",
+      "text": "At dusk the silver bell tolls over Hollowmere for the first time in days, and the mist \u2014 insulted, outmanoeuvred, and thoroughly told \u2014 retreats back across the water in sulky grey ropes.\n\nElder Bron counts out 150 gold with wet eyes and pretends he isn't crying. Pella gives you a pie and a discount for life. Widle has already told everyone the bell rang itself \u2014 but she's also told them your name, and she says it like a hero's.",
+      "epilogue": "Your name gets added to the shrine's little plaque. You are, officially, a friend of the village forever \u2014 and Mother Sedge sends word that the mist tells her you did well. From Mother Sedge, that's practically a parade."
+    },
+    "peace-ending": {
+      "type": "ending",
+      "outcome": "victory",
+      "xp": 400,
+      "onEnter": [
+        {
+          "gold": 150
+        }
+      ],
+      "title": "A muddy peace",
+      "text": "The bell is handed down to you by the Mire King himself, with a short speech about neighbourly relations that nobody quite believes and everybody applauds anyway.\n\nYou ring it at dusk over Hollowmere. Somewhere out on the marsh, a goblin king listens \u2014 and, so the story goes, does not come again. The mist stays where it belongs. Mostly.",
+      "epilogue": "You saved the bell without drawing a blade. The bards will be insufferable about it, and you'll enjoy every insufferable word."
+    },
+    "sell-ending": {
+      "type": "ending",
+      "outcome": "neutral",
+      "xp": 150,
+      "title": "A fair price",
+      "text": "Gold is gold, and 150 of it weighs pleasantly in your hand as the wagon rolls away with Hollowmere's bell in the back, bound for some collector on the coast who probably deserves it less than the village did.\n\nThe mist keeps rolling in over Hollowmere. You tell yourself they can buy another bell. You tell yourself that quite a lot, actually.",
+      "epilogue": "Somewhere, a shrine stands empty. Somewhere else, a merchant makes a tidy profit. You try not to think about the crow laughing in the reeds."
+    },
+    "captured-ending": {
+      "type": "ending",
+      "outcome": "defeat",
+      "xp": 50,
+      "title": "The Mire King's guest",
+      "text": "You wake tied to a throne-room post while the court of the Mire King argues about whether you count as 'a guest' or 'a larder'. Grubnak, magnanimous in victory, settles it: you are thrown out of the marsh with a warning, a bruise, and most of your dignity intact.\n\nThe bell keeps singing to the mist. For now.",
+      "epilogue": "You limp home. The elder doesn't say 'I told you so', which somehow makes it worse. Mother Sedge sends a poultice and a note that just says: *next time, try the charm.*"
+    }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 0,
+  "appVersion": "0.0.1",
+  "savedAt": "2026-10-01T12:00:00.000Z",
+  "rng": 123456789,
+  "hero": {
+    "name": "Old Hero",
+    "classId": "fighter",
+    "level": 2,
+    "xp": 350,
+    "hp": 18,
+    "maxHp": 22,
+    "gold": 45,
+    "abilities": { "STR": 15, "DEX": 12, "CON": 14, "INT": 8, "WIS": 10, "CHA": 13 }
+  },
+  "status": "active"
+}

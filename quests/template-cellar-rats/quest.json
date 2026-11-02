@@ -1,0 +1,231 @@
+{
+  "schemaVersion": 1,
+  "id": "template-cellar-rats",
+  "version": "1.0.0",
+  "title": "Rats in the Cellar",
+  "summary": "Marta the innkeeper has a rat problem. Giant rats. With opinions.",
+  "author": "Dungeon",
+  "recommendedLevel": 1,
+  "estimatedMinutes": 10,
+  "start": "inn",
+  "npcs": {
+    "marta": {
+      "name": "Marta",
+      "title": "Innkeeper of the Brass Tankard"
+    }
+  },
+  "enemies": {
+    "giant-rat": {
+      "name": "Giant Rat",
+      "ac": 9,
+      "hp": "2d6",
+      "dex": 15,
+      "passivePerception": 10,
+      "xp": 25,
+      "actions": [
+        {
+          "name": "Bite",
+          "attack": 3,
+          "damage": "1d4+1",
+          "type": "piercing",
+          "weight": 3
+        }
+      ],
+      "morale": {
+        "fleeBelowHpPct": 50
+      },
+      "avatar": {
+        "seed": 7,
+        "frame": "enemy",
+        "creature": "rat"
+      }
+    },
+    "rat-king": {
+      "name": "The Rat King",
+      "ac": 11,
+      "hp": "4d8",
+      "dex": 14,
+      "passivePerception": 11,
+      "xp": 100,
+      "actions": [
+        {
+          "name": "Savage Bite",
+          "attack": 4,
+          "damage": "1d6+1",
+          "type": "piercing",
+          "weight": 3
+        },
+        {
+          "name": "Shrill Squeak",
+          "save": {
+            "ability": "WIS",
+            "dc": 11,
+            "half": false
+          },
+          "damage": "1d4+1",
+          "type": "psychic",
+          "recharge": 3,
+          "weight": 1
+        }
+      ],
+      "phases": [
+        {
+          "belowHpPct": 50,
+          "text": "The Rat King's tails writhe \u2014 it fights with desperate fury!",
+          "addActions": [
+            {
+              "name": "Frenzied Gnawing",
+              "attack": 6,
+              "damage": "1d8+3",
+              "type": "piercing",
+              "weight": 2
+            }
+          ]
+        }
+      ],
+      "avatar": {
+        "seed": 17,
+        "frame": "enemy",
+        "creature": "rat"
+      }
+    }
+  },
+  "items": {
+    "rat-tooth-charm": {
+      "name": "Rat Tooth Charm",
+      "kind": "treasure",
+      "value": 15
+    }
+  },
+  "scenes": {
+    "inn": {
+      "type": "dialogue",
+      "title": "The Brass Tankard",
+      "speaker": "marta",
+      "text": "\"{{hero.name}}, is it? Thank goodness. Somethin' the size of a terrier is eatin' my cellar bare. Fifty gold says you can shift it.\"",
+      "choices": [
+        {
+          "text": "\"Consider it done.\" (Head down to the cellar)",
+          "goto": "cellar-stairs"
+        },
+        {
+          "text": "\"Fifty? Make it sixty and I'll bring you the tail.\"",
+          "check": {
+            "skill": "persuasion",
+            "dc": 12
+          },
+          "success": {
+            "goto": "cellar-stairs",
+            "effects": [
+              {
+                "gold": 10
+              }
+            ],
+            "text": "Marta laughs and slides a few coins across the bar. \"Sixty, then. Ten now, the rest after.\""
+          },
+          "failure": {
+            "goto": "cellar-stairs",
+            "text": "Marta folds her arms. \"Fifty. Take it or leave it.\""
+          }
+        }
+      ]
+    },
+    "cellar-stairs": {
+      "type": "check",
+      "title": "The Cellar Stairs",
+      "text": "The steps are slick with spilled ale. Below, something skitters.",
+      "check": {
+        "skill": "acrobatics",
+        "dc": 11
+      },
+      "success": {
+        "goto": "cellar",
+        "text": "You descend quietly, catching the rats unaware."
+      },
+      "failure": {
+        "goto": "cellar",
+        "effects": [
+          {
+            "damage": "1d4",
+            "type": "bludgeoning"
+          }
+        ],
+        "text": "Your boot slips \u2014 you clatter down the last few steps and bruise your shoulder."
+      }
+    },
+    "cellar": {
+      "type": "encounter",
+      "title": "The Cellar",
+      "text": "Eyes gleam between the barrels. Then a mountain of knotted tails heaves itself upright: the Rat King.",
+      "enemies": [
+        {
+          "enemy": "giant-rat",
+          "count": 1
+        },
+        {
+          "enemy": "rat-king"
+        }
+      ],
+      "canFlee": true,
+      "fleeDC": 10,
+      "victory": {
+        "goto": "spoils",
+        "text": "The last rat squeaks and scatters into the walls. The cellar is yours."
+      },
+      "flee": {
+        "goto": "inn-retreat",
+        "text": "You stumble back up the stairs, tail between your legs \u2014 figuratively, thankfully."
+      },
+      "defeat": {
+        "goto": "thrown-out",
+        "text": "The world goes soft and dark. You wake in the alley behind the inn, bitten but alive."
+      }
+    },
+    "spoils": {
+      "type": "loot",
+      "title": "Spoils of the Cellar",
+      "text": "In the rats' nest you find a small cache of shinies \u2014 and one charm of gnawed teeth that is frankly charming.",
+      "gold": "2d6+5",
+      "items": [
+        {
+          "item": "rat-tooth-charm"
+        },
+        {
+          "item": "potion-healing"
+        }
+      ],
+      "next": {
+        "goto": "victory-ending"
+      }
+    },
+    "victory-ending": {
+      "type": "ending",
+      "outcome": "victory",
+      "xp": 150,
+      "onEnter": [
+        {
+          "gold": 50
+        }
+      ],
+      "title": "Pest Control",
+      "text": "Marta counts out your gold and the Brass Tankard serves you free suppers for a week.",
+      "epilogue": "The cellar is quiet at last, save for the drip of a well-tapped barrel."
+    },
+    "inn-retreat": {
+      "type": "ending",
+      "outcome": "neutral",
+      "xp": 25,
+      "title": "A Tactical Withdrawal",
+      "text": "Marta sighs and slides you a sympathy ale. \"Maybe come back when you've got a bigger stick.\"",
+      "epilogue": "The rats keep the cellar. For now."
+    },
+    "thrown-out": {
+      "type": "ending",
+      "outcome": "defeat",
+      "xp": 10,
+      "title": "Bitten and Bruised",
+      "text": "You wake in the alley with a headache and a new respect for vermin. Marta leaves a bandage on the doorstep.",
+      "epilogue": "Somewhere below, the Rat King feasts."
+    }
+  }
+}
