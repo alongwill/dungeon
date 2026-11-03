@@ -18,102 +18,134 @@ const shade = (hex: string, f: number) => {
   const c = (v: number) => Math.max(0, Math.min(255, Math.round(v * f)));
   return `#${((c(n >> 16) << 16) | (c((n >> 8) & 255) << 8) | c(n & 255)).toString(16).padStart(6, '0')}`;
 };
+const mix = (a: string, b: string, t: number) => {
+  const p = (h: string, s: number) => (parseInt(h.slice(1), 16) >> s) & 255;
+  const ch = (s: number) => Math.round(p(a, s) * (1 - t) + p(b, s) * t);
+  return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0')}`;
+};
+
+const EYE_COLOURS = ['#5a3a1e', '#3a6aa0', '#4a7a3a', '#8a6a2a', '#6a7480'];
+const LIPS = '#a04a42';
 
 function HairBack({ style, colour }: { style: string; colour: string }) {
-  if (style === 'long') return <path d="M18 40 Q16 20 40 18 Q64 20 62 40 L64 66 Q56 62 54 50 L26 50 Q24 62 16 66 Z" fill={shade(colour, 0.8)} />;
-  if (style === 'bob') return <path d="M19 42 Q18 20 40 19 Q62 20 61 42 L60 52 Q56 50 54 44 L26 44 Q24 50 20 52 Z" fill={shade(colour, 0.8)} />;
+  const c = shade(colour, 0.78);
+  if (style === 'long') return <path d="M21 36 Q20 13 40 12 Q60 13 59 36 L62 70 Q55 68 53 56 L27 56 Q25 68 18 70 Z" fill={c} />;
+  if (style === 'bob') return <path d="M22 36 Q21 14 40 13 Q59 14 58 36 L58 51 Q54 52 53 44 L27 44 Q26 52 22 51 Z" fill={c} />;
   return null;
 }
 
-function Hair({ style, colour }: { style: string; colour: string }) {
-  const hi = shade(colour, 1.35);
+function Hair({ style, colour, grad }: { style: string; colour: string; grad: string }) {
+  const hi = shade(colour, 1.5), lo = shade(colour, 0.7);
+  const fill = `url(#${grad})`;
+  const strands = (d: string) => <path d={d} stroke={lo} stroke-width="0.8" fill="none" opacity="0.6" />;
+  const shine = (d: string) => <path d={d} stroke={hi} stroke-width="1.6" fill="none" stroke-linecap="round" opacity="0.55" />;
   switch (style) {
     case 'bob':
       return (<g>
-        <path d="M20 40 Q20 18 40 18 Q60 18 60 40 Q56 30 46 27 Q40 31 34 27 Q24 30 20 40 Z" fill={colour} />
-        <path d="M28 24 Q36 20 44 22" stroke={hi} stroke-width="2" fill="none" stroke-linecap="round" opacity="0.6" />
+        <path d="M23.5 34 Q23 14 40 14 Q57 14 56.5 34 Q55 27 50 24 Q44 27.5 37 25 Q30 26 26 29 Q24 31 23.5 34 Z" fill={fill} />
+        {strands('M30 17 Q28 22 27 29 M40 15 Q37 20 37 25 M49 17 Q51 21 50 24')}
+        {shine('M30 18 Q37 15.5 45 17')}
       </g>);
     case 'long':
       return (<g>
-        <path d="M19 42 Q18 16 40 16 Q62 16 61 42 Q58 30 50 26 Q44 30 40 26 Q34 31 28 27 Q22 32 19 42 Z" fill={colour} />
-        <path d="M27 22 Q36 18 46 20" stroke={hi} stroke-width="2" fill="none" stroke-linecap="round" opacity="0.6" />
+        <path d="M23.5 35 Q23 14 40 14 Q57 14 56.5 35 Q54 24 46 21 Q40 25 33 24.5 Q27 27 23.5 35 Z" fill={fill} />
+        <path d="M24 34 Q23 46 25 58 L28 58 Q26 46 27 36 Z M56 34 Q57 46 55 58 L52 58 Q54 46 53 36 Z" fill={fill} />
+        {strands('M33 16 Q30 20 29 25 M44 15 Q47 19 47 22 M25 40 Q25 48 26.5 56 M55 40 Q55 48 53.5 56')}
+        {shine('M29 18 Q37 15 46 16.5')}
       </g>);
     case 'mohawk':
       return (<g>
-        <path d="M35 30 Q33 16 38 8 Q40 14 42 8 Q47 16 45 30 Q40 27 35 30 Z" fill={colour} />
-        <path d="M38 12 L39 26" stroke={hi} stroke-width="1.5" opacity="0.6" />
-        <path d="M24 38 Q24 30 30 28 M56 38 Q56 30 50 28" stroke={shade(colour, 0.9)} stroke-width="1.5" fill="none" opacity="0.5" />
+        <path d="M25 33 Q25 22 31 19 Q27 26 27 33 Z M55 33 Q55 22 49 19 Q53 26 53 33 Z" fill={lo} opacity="0.45" />
+        <path d="M36 23 Q34 9 40 3 Q46 9 44 23 Q40 20.5 36 23 Z" fill={fill} />
+        {strands('M38 8 L38.5 21 M41.5 7 L41.5 21')}
+        {shine('M39 6 Q38 12 39 18')}
       </g>);
     case 'bald':
       return (<g>
-        <ellipse cx="34" cy="26" rx="6" ry="3" fill="#fff" opacity="0.22" />
-        <path d="M21 42 Q20 36 23 34 M59 42 Q60 36 57 34" stroke={colour} stroke-width="3" fill="none" stroke-linecap="round" />
+        <ellipse cx="35" cy="22" rx="6" ry="2.6" fill="#fff" opacity="0.28" />
+        <path d="M25 37 Q24.5 31 26.5 27 M55 37 Q55.5 31 53.5 27" stroke={colour} stroke-width="2.6" fill="none" stroke-linecap="round" opacity="0.8" />
       </g>);
     default: // crop
       return (<g>
-        <path d="M21 38 Q20 18 40 18 Q60 18 59 38 Q56 28 48 26 L46 29 L42 26 L38 29 L34 26 Q24 28 21 38 Z" fill={colour} />
-        <path d="M30 22 Q38 19 46 21" stroke={hi} stroke-width="2" fill="none" stroke-linecap="round" opacity="0.6" />
+        <path d="M24 33 Q23 14.5 40 14 Q57 14.5 56 33 Q54.5 25 49 22.5 L46.5 25 L43 22.5 L39.5 25.5 L36 22.5 L32.5 25 Q26.5 26 24 33 Z" fill={fill} />
+        {strands('M31 17 L32.5 24 M40 15 L39.5 25 M48 17 L46.5 24')}
+        {shine('M31 18 Q38 15.5 46 17.5')}
       </g>);
   }
 }
 
-function Eyes({ style }: { style: string }) {
-  const y = 41;
+function Eyes({ style, iris }: { style: string; iris: string }) {
+  const y = 36;
   const brow = (dy: number, tilt: number) => (
-    <g stroke="#3a2a20" stroke-width="2" stroke-linecap="round" opacity="0.85">
-      <line x1="28" y1={y - 7 + dy + tilt} x2="36" y2={y - 8 + dy} />
-      <line x1="44" y1={y - 8 + dy} x2="52" y2={y - 7 + dy + tilt} />
+    <g stroke="#3a2418" stroke-width="1.7" stroke-linecap="round" opacity="0.9" fill="none">
+      <path d={`M30 ${y - 4.5 + dy + tilt} Q33.5 ${y - 6.5 + dy} 37 ${y - 5 + dy}`} />
+      <path d={`M43 ${y - 5 + dy} Q46.5 ${y - 6.5 + dy} 50 ${y - 4.5 + dy + tilt}`} />
+    </g>
+  );
+  const eye = (cx: number, open = 1, irisR = 1.7) => (
+    <g>
+      <ellipse cx={cx} cy={y} rx="3.2" ry={2.1 * open} fill="#fbf6ee" />
+      <circle cx={cx} cy={y} r={irisR} fill={iris} />
+      <circle cx={cx} cy={y} r={irisR * 0.5} fill="#111" />
+      <circle cx={cx + 0.6} cy={y - 0.6} r="0.5" fill="#fff" />
+      <path d={`M${cx - 3.4} ${y - 0.3} Q${cx} ${y - 2.9 * open} ${cx + 3.4} ${y - 0.3}`} stroke="#2a1a12" stroke-width="1.1" fill="none" stroke-linecap="round" />
     </g>
   );
   switch (style) {
     case 'narrow':
-      return (<g>{brow(1, 1.5)}<g stroke="#222" stroke-width="2.2" stroke-linecap="round">
-        <line x1="28" y1={y} x2="36" y2={y} /><line x1="44" y1={y} x2="52" y2={y} /></g></g>);
+      return (<g>{brow(1.2, 1.2)}{eye(33.5, 0.55, 1.3)}{eye(46.5, 0.55, 1.3)}</g>);
     case 'bright':
-      return (<g>{brow(-1, 0)}<g fill="#222"><circle cx="32" cy={y} r="3.2" /><circle cx="48" cy={y} r="3.2" />
-        <circle cx="33.2" cy={y - 1.2} r="1.2" fill="#fff" /><circle cx="49.2" cy={y - 1.2} r="1.2" fill="#fff" /></g></g>);
+      return (<g>{brow(-0.8, 0)}{eye(33.5, 1.15, 1.9)}{eye(46.5, 1.15, 1.9)}
+        <circle cx="32.6" cy={y + 0.6} r="0.35" fill="#fff" /><circle cx="45.6" cy={y + 0.6} r="0.35" fill="#fff" /></g>);
     case 'sleepy':
-      return (<g>{brow(0, -1)}<g stroke="#222" stroke-width="2" fill="none" stroke-linecap="round">
-        <path d={`M28 ${y} q4 3 8 0`} /><path d={`M44 ${y} q4 3 8 0`} /></g></g>);
+      return (<g>{brow(0.5, -0.8)}{eye(33.5, 0.7)}{eye(46.5, 0.7)}
+        <path d={`M30 ${y - 0.6} Q33.5 ${y - 1.6} 37 ${y - 0.6} M43 ${y - 0.6} Q46.5 ${y - 1.6} 50 ${y - 0.6}`} stroke={shade('#c89070', 0.9)} stroke-width="1.2" fill="none" opacity="0.6" /></g>);
     case 'wide':
-      return (<g>{brow(-2, 0)}<circle cx="32" cy={y} r="4.2" fill="#fff" stroke="#222" />
-        <circle cx="48" cy={y} r="4.2" fill="#fff" stroke="#222" />
-        <circle cx="32.5" cy={y} r="1.9" fill="#222" /><circle cx="48.5" cy={y} r="1.9" fill="#222" /></g>);
+      return (<g>{brow(-2, 0)}{eye(33.5, 1.35, 1.6)}{eye(46.5, 1.35, 1.6)}</g>);
     default:
-      return (<g>{brow(0, 0)}<g fill="#222"><circle cx="32" cy={y} r="2.7" /><circle cx="48" cy={y} r="2.7" />
-        <circle cx="32.8" cy={y - 0.9} r="0.9" fill="#fff" /><circle cx="48.8" cy={y - 0.9} r="0.9" fill="#fff" /></g></g>);
+      return (<g>{brow(0, 0)}{eye(33.5)}{eye(46.5)}</g>);
   }
 }
 
-function Mouth({ style }: { style: string }) {
-  const y = 53;
+function Mouth({ style, skin }: { style: string; skin: string }) {
+  const y = 49.5;
+  const lip = shade(LIPS, 0.95), dark = '#4a1e1a';
   switch (style) {
     case 'grin':
-      return <path d={`M31 ${y} q9 8 18 0 z`} fill="#7a3b2e" stroke="#7a3b2e" stroke-width="1.5" stroke-linejoin="round" />;
+      return (<g>
+        <path d={`M34.5 ${y - 0.5} Q40 ${y + 5} 45.5 ${y - 0.5} Q40 ${y + 1} 34.5 ${y - 0.5} Z`} fill={dark} />
+        <path d={`M35.5 ${y} Q40 ${y + 1.5} 44.5 ${y} L44 ${y + 1.2} Q40 ${y + 2.4} 36 ${y + 1.2} Z`} fill="#f6f0e4" />
+        <path d={`M34.5 ${y - 0.5} Q40 ${y + 5} 45.5 ${y - 0.5}`} stroke={lip} stroke-width="1.2" fill="none" />
+      </g>);
     case 'flat':
-      return <line x1="34" y1={y + 1} x2="46" y2={y + 1} stroke="#7a3b2e" stroke-width="2.4" stroke-linecap="round" />;
+      return (<g><path d={`M35.5 ${y + 0.6} Q40 ${y + 1.2} 44.5 ${y + 0.6}`} stroke={lip} stroke-width="1.8" fill="none" stroke-linecap="round" />
+        <path d={`M37 ${y + 2.6} Q40 ${y + 3.4} 43 ${y + 2.6}`} stroke={shade(skin, 0.8)} stroke-width="1" fill="none" opacity="0.6" /></g>);
     case 'open':
-      return <ellipse cx="40" cy={y + 1} rx="4.5" ry="3.4" fill="#5a2a22" />;
+      return (<g><ellipse cx="40" cy={y + 1} rx="3.4" ry="2.8" fill={dark} />
+        <path d={`M37.4 ${y + 2.4} Q40 ${y + 1.6} 42.6 ${y + 2.4} Q40 ${y + 3.8} 37.4 ${y + 2.4} Z`} fill="#c0605a" />
+        <ellipse cx="40" cy={y + 1} rx="3.4" ry="2.8" fill="none" stroke={lip} stroke-width="1" /></g>);
     case 'smirk':
-      return <path d={`M33 ${y + 2} q8 2 14 -3`} stroke="#7a3b2e" stroke-width="2.4" fill="none" stroke-linecap="round" />;
+      return <path d={`M35.5 ${y + 1.6} Q40 ${y + 2.6} 45 ${y - 0.8}`} stroke={lip} stroke-width="1.8" fill="none" stroke-linecap="round" />;
     default:
-      return <path d={`M33 ${y} q7 5 14 0`} stroke="#7a3b2e" stroke-width="2.2" fill="none" stroke-linecap="round" />;
+      return (<g><path d={`M35 ${y} Q40 ${y + 3.6} 45 ${y}`} stroke={lip} stroke-width="1.8" fill="none" stroke-linecap="round" />
+        <path d={`M37.5 ${y + 3.2} Q40 ${y + 4} 42.5 ${y + 3.2}`} stroke={shade(skin, 0.82)} stroke-width="0.9" fill="none" opacity="0.6" /></g>);
   }
 }
 
 function Accessory({ kind }: { kind: string }) {
   switch (kind) {
     case 'scar':
-      return <path d="M49 32 L54 46 M50 36 L53 35 M51 40 L54 39" stroke="#a0604a" stroke-width="1.6" stroke-linecap="round" />;
+      return <path d="M47 31 L51 43 M48 34.5 L50.5 33.8 M49.2 38.4 L51.6 37.6" stroke="#9a5a48" stroke-width="1.3" stroke-linecap="round" />;
     case 'freckles':
-      return (<g fill="#b0715a" opacity="0.8"><circle cx="28" cy="47" r="1" /><circle cx="31" cy="49" r="1" /><circle cx="27" cy="50" r="0.8" />
-        <circle cx="49" cy="47" r="1" /><circle cx="52" cy="49" r="1" /><circle cx="53" cy="46" r="0.8" /></g>);
+      return (<g fill="#a0604a" opacity="0.7">{[[31, 41], [33.5, 42.5], [30, 43.5], [35.5, 41.5], [49, 41], [46.5, 42.5], [50, 43.5], [44.5, 41.5]].map(([x, y], i) =>
+        <circle key={i} cx={x} cy={y} r="0.6" />)}</g>);
     case 'eyepatch':
-      return (<g><path d="M20 34 L60 30" stroke="#1a1a1a" stroke-width="2" />
-        <path d="M26 38 Q32 35 38 38 L37 44 Q32 47 27 44 Z" fill="#1a1a1a" /></g>);
+      return (<g><path d="M24 28 L56 25" stroke="#1a1a1a" stroke-width="1.6" />
+        <path d="M29.5 33.5 Q33.5 31 37.5 33.5 L37 38.5 Q33.5 40.5 30 38.5 Z" fill="#1a1a1a" /></g>);
     case 'circlet':
-      return (<g><path d="M22 31 Q40 25 58 31" stroke="#c9a227" stroke-width="2.4" fill="none" />
-        <path d="M40 24 l3 4 l-3 4 l-3 -4 z" fill="#5ac0e0" stroke="#c9a227" stroke-width="1" /></g>);
+      return (<g><path d="M24.5 26.5 Q40 20.5 55.5 26.5" stroke="#c9a227" stroke-width="2" fill="none" />
+        <path d="M24.5 26.5 Q40 20.5 55.5 26.5" stroke="#fff4c0" stroke-width="0.6" fill="none" opacity="0.6" />
+        <path d="M40 19.5 l2.6 3.4 l-2.6 3.4 l-2.6 -3.4 z" fill="#5ac0e0" stroke="#c9a227" stroke-width="0.9" /></g>);
     default:
       return null;
   }
@@ -369,6 +401,7 @@ export function Avatar({
   const garbColour = frame === 'npc' ? '#7a6248' : frame === 'enemy' ? '#5a2e2e' : frameColour;
   // ids depend only on `frame`, so duplicate ids across avatars always hold identical defs
   const ring = `av-ring-${frame}`, bg = `av-bg-${frame}`;
+  const skinGrad = `av-skin-${skin.slice(1)}`, hairGrad = `av-hair-${hairColour.slice(1)}`;
 
   return (
     <svg
@@ -381,14 +414,24 @@ export function Avatar({
     >
       <defs>
         <linearGradient id={ring} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color={shade(frameColour, 1.45)} />
+          <stop offset="0" stop-color={mix(frameColour, '#fff4dc', 0.45)} />
           <stop offset="0.5" stop-color={frameColour} />
-          <stop offset="1" stop-color={shade(frameColour, 0.55)} />
+          <stop offset="1" stop-color={shade(frameColour, 0.5)} />
         </linearGradient>
-        <radialGradient id={bg} cx="50%" cy="35%" r="75%">
-          <stop offset="0" stop-color={frame === 'enemy' ? '#5a3a34' : '#f2e6cc'} />
-          <stop offset="1" stop-color={frame === 'enemy' ? '#1e1210' : shade(frameColour, 0.6)} />
+        <radialGradient id={bg} cx="50%" cy="38%" r="70%">
+          <stop offset="0" stop-color={frame === 'enemy' ? '#6a4038' : mix(frameColour, '#f2e6cc', 0.6)} />
+          <stop offset="0.55" stop-color={frame === 'enemy' ? '#3a2420' : mix(frameColour, '#f2e6cc', 0.15)} />
+          <stop offset="1" stop-color={frame === 'enemy' ? '#140c0a' : shade(frameColour, 0.4)} />
         </radialGradient>
+        <radialGradient id={skinGrad} cx="42%" cy="34%" r="70%">
+          <stop offset="0" stop-color={shade(skin, 1.08)} />
+          <stop offset="0.6" stop-color={skin} />
+          <stop offset="1" stop-color={shade(skin, 0.8)} />
+        </radialGradient>
+        <linearGradient id={hairGrad} x1="0" y1="0" x2="0.3" y2="1">
+          <stop offset="0" stop-color={shade(hairColour, 1.25)} />
+          <stop offset="1" stop-color={shade(hairColour, 0.75)} />
+        </linearGradient>
         <clipPath id="av-clip"><circle cx="40" cy="40" r="33" /></clipPath>
       </defs>
       <circle cx="40" cy="40" r="39" fill={`url(#${ring})`} />
@@ -396,20 +439,24 @@ export function Avatar({
       <circle cx="40" cy="40" r="33" fill={`url(#${bg})`} />
       <g clip-path="url(#av-clip)">
         {creature ?? (
-          <g>
+          <g transform="translate(40 44) scale(1.12) translate(-40 -44)">
             <HairBack style={hair} colour={hairColour} />
-            <rect x="34" y="54" width="12" height="10" fill={shade(skin, 0.85)} />
+            <path d="M34.5 50 L45.5 50 L46.5 64 L33.5 64 Z" fill={shade(skin, 0.86)} />
+            <path d="M34.5 52 Q40 57 45.5 52 L45.8 56 Q40 60 34.2 56 Z" fill="#000" opacity="0.16" />
             <Garb frame={frame} colour={garbColour} />
-            <ellipse cx="19.5" cy="42" rx="3.2" ry="4.6" fill={shade(skin, 0.92)} />
-            <ellipse cx="60.5" cy="42" rx="3.2" ry="4.6" fill={shade(skin, 0.92)} />
-            <ellipse cx="40" cy="40" rx="20" ry="21" fill={skin} />
-            <path d="M52 24 Q62 36 56 54 Q50 60 42 61 Q56 48 52 24 Z" fill="#000" opacity="0.07" />
-            <circle cx="28" cy="49" r="3.4" fill="#e07a6a" opacity="0.22" />
-            <circle cx="52" cy="49" r="3.4" fill="#e07a6a" opacity="0.22" />
-            <path d="M40 43 Q38 48 40 49 Q42 49 42 48" stroke={shade(skin, 0.7)} stroke-width="1.4" fill="none" stroke-linecap="round" />
-            <Hair style={hair} colour={hairColour} />
-            <Eyes style={eyes} />
-            <Mouth style={mouth} />
+            <ellipse cx="24.8" cy="37" rx="2.8" ry="4.4" fill={shade(skin, 0.9)} />
+            <ellipse cx="55.2" cy="37" rx="2.8" ry="4.4" fill={shade(skin, 0.9)} />
+            <path d="M24.6 36 Q25.6 34.5 26 37.5 M55.4 36 Q54.4 34.5 54 37.5" stroke={shade(skin, 0.72)} stroke-width="0.8" fill="none" />
+            <path d="M25 32 Q25 16 40 16 Q55 16 55 32 Q55 45 48.5 52 Q44.5 56 40 56 Q35.5 56 31.5 52 Q25 45 25 32 Z" fill={`url(#${skinGrad})`} />
+            <path d="M49 21 Q56 30 54 42 Q51.5 51 44 55 Q52 44 49 21 Z" fill="#000" opacity="0.07" />
+            <ellipse cx="30.5" cy="43" rx="2.8" ry="1.8" fill="#e0705e" opacity="0.14" />
+            <ellipse cx="49.5" cy="43" rx="2.8" ry="1.8" fill="#e0705e" opacity="0.14" />
+            <path d="M41.2 38.5 Q42.6 41.6 42.2 43.4 L40.6 43.6 Z" fill="#000" opacity="0.1" />
+            <path d="M38.2 43.4 Q40 45.2 41.8 43.4" stroke={shade(skin, 0.66)} stroke-width="1" fill="none" stroke-linecap="round" />
+            <ellipse cx="39.6" cy="40.6" rx="0.7" ry="2" fill="#fff" opacity="0.2" />
+            <Hair style={hair} colour={hairColour} grad={hairGrad} />
+            <Eyes style={eyes} iris={EYE_COLOURS[Math.abs(spec.seed) % EYE_COLOURS.length]!} />
+            <Mouth style={mouth} skin={skin} />
             <Accessory kind={accessory} />
           </g>
         )}

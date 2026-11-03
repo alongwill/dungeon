@@ -25,12 +25,12 @@ import {
 import { DeathScreen, EndingScreen } from './meta';
 import { inferBackdrop, SceneArt } from '../art/SceneArt';
 import { useMotion } from '../motion';
+import { enemySpec, nameHash as hash } from '../actors';
 import { randomAvatar } from '../../avatar/generate';
 import { rngFromSeed } from '../../engine/dice';
 import { playSfx } from '../../sfx';
 import type { GameEvent } from '../../engine/model';
 
-const hash = (t: string) => { let h = 0; for (const c of t) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
 
 const ord = (n: number) => ['—','1st','2nd','3rd','4th','5th'][n] ?? `${n}th`;
 
@@ -209,6 +209,7 @@ function SceneView({ scene }: { scene: Scene }) {
 
   const speaker = scene.type === 'dialogue' ? quest.npcs?.[scene.speaker] : undefined;
   const pending = s.game.quest?.pending;
+  const rollWaiting = !!manualRollPending();
 
   const visibleChoices = (scene.type === 'narration' || scene.type === 'dialogue')
     ? scene.choices.filter((c) => {
@@ -239,7 +240,8 @@ function SceneView({ scene }: { scene: Scene }) {
         {scene.text.split('\n\n').map((p, i) => <p key={i}>{em(interpolate(p, s.game, quest))}</p>)}
       </div>
 
-      {pending ? (
+      <RollPrompt />
+      {rollWaiting ? null : pending ? (
         <PendingCard pending={pending} quest={quest} />
       ) : (
         <ol class="choices">
@@ -307,11 +309,7 @@ function EnemyCard({ id, targeted, onTarget, hit, boss }: {
 }) {
   const st = useStore((st) => st);
   const e = displayState(st.game, st.queue, st.ui.playback).combat!.enemies.find((x) => x.id === id)!;
-  const scene = useStore((s) => {
-    const q = s.quest;
-    return q?.enemies?.[e.defId];
-  });
-  const spec = scene?.avatar ?? { seed: hash(e.defId) + hash(e.id), frame: 'enemy' as const, creature: 'beast' };
+  const spec = enemySpec(e.id, st.quest);
   const out = e.dead || e.fled;
   return (
     <div class={`enemy card ${e.dead ? 'dead' : ''} ${e.fled ? 'fled' : ''} ${targeted && !out ? 'targeted' : ''} ${hit ?? ''} ${boss ? 'boss' : ''}`}
@@ -546,6 +544,7 @@ function CombatScreen() {
         <button disabled={playing} onClick={() => dispatch({ type: 'endTurn' })}><kbd>6</kbd> End Turn</button>
       </div>
       )}
+      <RulesHelp />
       <RollPrompt onRoll={() => fxRef.current?.play({
         type: 'roll', label: 'Roll', result: { expr: '1d20', rolls: [], total: 0, modifier: 0, nat20: false, nat1: false },
         actor: 'hero', actorName: hero.name, purpose: 'attack', parts: [], finalTotal: 0,
@@ -595,6 +594,22 @@ function CombatScreen() {
         <button class="skip" onClick={() => advancePlayback(true)}>Skip</button>
       )}
     </div>
+  );
+}
+
+function RulesHelp() {
+  return (
+    <details class="rules-help">
+      <summary>How do the dice work?</summary>
+      <ul>
+        <li><b>Attacking:</b> roll a 20-sided die (d20) and add your bonuses. If the total reaches the target's <b>armour</b> number, you hit. Enemies do the same against <i>your</i> armour.</li>
+        <li><b>Bonuses</b> come from two places: your <b>ability score</b> for the action (Strength for swords, Dexterity for bows, Wisdom or Intelligence for spells — every 2 points above 10 is +1) and your <b>proficiency</b>, a training bonus (+2 at levels 1–4) for things your class is good at.</li>
+        <li><b>Damage:</b> on a hit, roll the weapon or spell's damage dice (e.g. d8) and add your ability bonus.</li>
+        <li><b>Saves:</b> some spells make the <i>target</i> roll to resist against your spell difficulty. They often still take half damage.</li>
+        <li><b>Natural 20</b> (the die shows 20) always hits and doubles the damage dice. <b>Natural 1</b> always misses.</li>
+        <li>Hover or tap any underlined word on a roll for a reminder.</li>
+      </ul>
+    </details>
   );
 }
 

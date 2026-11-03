@@ -74,3 +74,52 @@ describe('displayState', () => {
     expect(playbackSettled(q, 3, null)).toBe(false);
   });
 });
+
+import { firstUngatedHeroRoll, pendingRoll, tickDelay } from '../src/ui/playback';
+import { explainRoll } from '../src/ui/describe';
+
+const hr = (purpose: 'attack' | 'damage' | 'heal' | 'gold', actor = 'hero'): GameEvent => {
+  const result = roll('1d20', rngFromSeed(3)).result;
+  return { type: 'roll', label: purpose, result, actor, actorName: actor === 'hero' ? 'You' : 'Rat', purpose, parts: [], finalTotal: result.total };
+};
+
+describe('manual-roll gates for actions without a d20', () => {
+  it('finds the first hero roll when it is not already gated', () => {
+    expect(firstUngatedHeroRoll([narrate('x'), hr('damage'), hr('damage')])).toBe(1); // magic missile
+    expect(firstUngatedHeroRoll([hr('heal')])).toBe(0);
+    expect(firstUngatedHeroRoll([hr('attack'), hr('damage')])).toBeNull(); // attack already gated
+    expect(firstUngatedHeroRoll([hr('attack', 'rat-1')])).toBeNull();
+    expect(firstUngatedHeroRoll([hr('gold')])).toBeNull();
+  });
+  it('extra gates stop playback before that roll', () => {
+    const q = [narrate('cast'), hr('damage'), narrate('ow')];
+    const gates = new Set([1]);
+    expect(nextPlaybackCursor(q, 0, true, gates)).toBe(1);
+    expect(pendingRoll(q, 1, gates)).toBe(q[1]);
+    expect(nextPlaybackCursor(q, 0, true)).toBe(1); // without a gate: one tick only, then continues
+    expect(nextPlaybackCursor(q, 1, true)).toBe(2);
+  });
+});
+
+describe('tickDelay', () => {
+  it('gives enemy rolls and turn changes more time', () => {
+    expect(tickDelay([hr('attack', 'rat-1')], 0, 350)).toBe(1050);
+    expect(tickDelay([hr('damage', 'rat-1')], 0, 350)).toBe(700);
+    expect(tickDelay([turn()], 0, 350)).toBe(700);
+    expect(tickDelay([hr('attack')], 0, 350)).toBe(350);
+    expect(tickDelay([hr('attack', 'rat-1')], 0, 0)).toBe(0);
+  });
+});
+
+describe('explainRoll', () => {
+  it('explains hits and enemy attacks in plain words', () => {
+    const base = roll('1d20', rngFromSeed(5)).result;
+    const d = base.rolls[0]!.value;
+    const mk = (actor: string): Extract<GameEvent, { type: 'roll' }> => ({
+      type: 'roll', label: 'a', result: { ...base, nat20: false, nat1: false }, actor, actorName: actor === 'hero' ? 'You' : 'Rat',
+      purpose: 'attack', parts: [{ label: 'Strength', value: 3 }], finalTotal: d + 3, vs: { kind: 'armour', value: 12 }, targetName: 'Rat',
+    });
+    expect(explainRoll(mk('hero'))).toBe(`You needed 12 to hit Rat: d20 rolled ${d} + 3 bonus = ${d + 3}.`);
+    expect(explainRoll(mk('rat-1'))).toMatch(/^Rat needed 12 to hit you \(your armour\)/);
+  });
+});

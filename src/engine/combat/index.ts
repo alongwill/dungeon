@@ -341,7 +341,7 @@ function beginHeroTurn(s: GameState, events: GameEvent[]): void {
     hero.conditions = hero.conditions.filter((c) => c.name !== 'dodging');
     events.push({ type: 'condition', target: 'hero', condition: 'dodging', on: false });
   }
-  events.push({ type: 'turnStart', who: 'hero' });
+  events.push({ type: 'turnStart', who: 'hero', actor: 'hero' });
 }
 
 /** Advance through the turn order, running enemy turns, until the hero acts. */
@@ -546,7 +546,7 @@ function pickEnemyAction(s: GameState, e: CombatEnemy): EnemyDef['actions'][numb
 }
 
 function runEnemyTurn(s: GameState, e: CombatEnemy, events: GameEvent[]): void {
-  events.push({ type: 'turnStart', who: e.name });
+  events.push({ type: 'turnStart', who: e.name, actor: e.id });
   if (enemyCond(e, 'stunned')) {
     events.push({ type: 'narrate', text: `${e.name} is stunned and cannot act.` });
   } else if (e.morale && (e.hp / e.maxHp) * 100 < e.morale.fleeBelowHpPct) {

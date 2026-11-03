@@ -6,6 +6,7 @@ import { Notices, SettingsScreen, SlotsScreen, TitleScreen } from './screens/met
 import { advancePlayback, dispatch } from './store';
 import { formatRoll } from '../engine/dice';
 import { playEvents, setSfxEnabled } from '../sfx';
+import { tickDelay } from './playback';
 import './styles.css';
 
 const ACTIONS: Record<string, string> = { c: 'character', i: 'inventory', l: 'log' };
@@ -61,7 +62,7 @@ export function App() {
     if (s.ui.playback >= s.queue.length) return;
     const reduce = globalThis.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     if (reduce || s.ui.settings.rollPlaybackMs <= 0) { advancePlayback(true); return; }
-    const t = setTimeout(() => advancePlayback(), s.ui.settings.rollPlaybackMs);
+    const t = setTimeout(() => advancePlayback(), tickDelay(s.queue, s.ui.playback, s.ui.settings.rollPlaybackMs));
     return () => clearTimeout(t);
   }, [s.ui.playback, s.queue.length, s.ui.settings.rollPlaybackMs]);
 

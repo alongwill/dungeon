@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'preact/hooks';
-import { EventCard } from './describe';
+import { DieChip, EventCard } from './describe';
+import { ActorAvatar } from './actors';
+import { nextRealEvent } from './playback';
 import type { GameEvent } from '../engine/model';
 
 /** Index after which the "current scene" started (last sceneEnter/combatStart). */
@@ -50,16 +52,34 @@ export function describeEvent(e: GameEvent): { text: string; cls: string } | nul
   }
 }
 
+/** Placeholder shown while an enemy's dice are tumbling (before the result is revealed). */
+function RollingCard({ ev }: { ev: Extract<GameEvent, { type: 'roll' }> }) {
+  const what = ev.purpose === 'attack' ? ` to hit you${ev.source ? ` with ${ev.source}` : ''}`
+    : ev.purpose === 'save' ? ' to resist' : ev.purpose === 'damage' ? ' for damage' : '';
+  return (
+    <div class="roll-card side-enemy rolling" aria-hidden="true">
+      <span class="rc-who"><ActorAvatar actor={ev.actor} size={30} /></span>
+      <div class="rc-body">
+        <p class="rc-header">{ev.actorName} rolls{what}…</p>
+        <p class="rc-line"><span class="tumbling-die"><DieChip sides={ev.result.rolls[0]?.sides ?? 20} value="?" kept /></span></p>
+      </div>
+    </div>
+  );
+}
+
 export function EventFeed({ queue, playback }: { queue: GameEvent[]; playback: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const items = feedEvents(queue, playback);
+  const next = playback < queue.length ? nextRealEvent(queue, playback) : null;
+  const rolling = next?.type === 'roll' && next.actor !== 'hero' && next.purpose !== 'initiative' ? next : null;
   useEffect(() => {
-    ref.current?.scrollTo({ top: ref.current.scrollHeight });
-  }, [items.length]);
-  if (!items.length) return null;
+    ref.current?.scrollTo({ top: ref.current.scrollHeight, behavior: 'smooth' });
+  }, [items.length, !!rolling]);
+  if (!items.length && !rolling) return null;
   return (
     <div class="feed" ref={ref} aria-label="event feed">
       {items.map((e, i) => <EventCard key={i} ev={e} />)}
+      {rolling && <RollingCard ev={rolling} />}
     </div>
   );
 }

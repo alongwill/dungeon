@@ -18,7 +18,7 @@ import {
 } from '../persistence';
 import { listQuests, loadQuest } from '../quests/registry';
 import { rngFromSeed } from '../engine/dice';
-import { nextPlaybackCursor, pendingRoll } from './playback';
+import { firstUngatedHeroRoll, nextPlaybackCursor, pendingRoll, type Gates } from './playback';
 
 export type Screen = 'title' | 'slots' | 'create' | 'quests' | 'adventure' | 'settings';
 export type Drawer = 'character' | 'inventory' | 'log' | null;
@@ -40,6 +40,8 @@ export interface Store {
   checkpoint: GameState | null;
   ui: UiState;
   queue: GameEvent[];
+  /** Queue indices of extra manual-roll gates (see playback.ts). Reset with the queue. */
+  gates: Gates;
 }
 
 let adapter: StorageAdapter = new MemoryAdapter();
@@ -75,6 +77,7 @@ let store: Store = {
     playback: 0,
   },
   queue: [],
+  gates: new Set(),
 };
 
 const listeners = new Set<() => void>();
@@ -134,11 +137,14 @@ export function dispatch(action: Action): void {
   }
   const hadSceneEnter = events.some((e) => e.type === 'sceneEnter');
   const queue = [...store.queue, ...events];
+  const extra = store.game.status === 'inCombat' ? firstUngatedHeroRoll(events) : null;
+  const gates = extra === null ? store.gates : new Set([...store.gates, store.queue.length + extra]);
   setStore({
     game: state,
     queue,
+    gates,
     // first item of the new batch is revealed immediately — no initial delay
-    ui: { ...store.ui, playback: nextPlaybackCursor(queue, queue.length - events.length, !store.ui.settings.autoRoll) },
+    ui: { ...store.ui, playback: nextPlaybackCursor(queue, queue.length - events.length, !store.ui.settings.autoRoll, gates) },
     ...(hadSceneEnter && state.status !== 'dead' ? { checkpoint: state } : {}),
   });
   autosave();
@@ -149,18 +155,21 @@ export function advancePlayback(all = false): void {
   setUi({
     playback: all
       ? store.queue.length
-      : nextPlaybackCursor(store.queue, store.ui.playback, !store.ui.settings.autoRoll),
+      : nextPlaybackCursor(store.queue, store.ui.playback, !store.ui.settings.autoRoll, store.gates),
   });
 }
 
 /** The hero roll awaiting a manual click, if manual rolling is on. */
 export function manualRollPending() {
-  return store.ui.settings.autoRoll ? null : pendingRoll(store.queue, store.ui.playback);
+  return store.ui.settings.autoRoll ? null : pendingRoll(store.queue, store.ui.playback, store.gates);
 }
 
 /** Reveal the gated roll and continue playback (presentation only — result is fixed). */
 export function confirmRoll(): void {
-  setUi({ playback: nextPlaybackCursor(store.queue, store.ui.playback + 1, !store.ui.settings.autoRoll) });
+  const pending = manualRollPending();
+  if (!pending) return;
+  const at = store.queue.indexOf(pending, store.ui.playback);
+  setUi({ playback: nextPlaybackCursor(store.queue, at + 1, !store.ui.settings.autoRoll, store.gates) });
   // ^ consume the gated event at cursor then resume; +1 skips past the gate
 }
 
@@ -171,7 +180,7 @@ export async function refreshQuests(): Promise<void> {
 export async function newGame(hero: Hero, slot: number): Promise<void> {
   const seed = freshSeed();
   const { state } = step(initialState(), { type: 'newGame', hero, seed }, { quest: null });
-  setStore({ game: state, quest: null, slot, checkpoint: null, queue: [] });
+  setStore({ game: state, quest: null, slot, checkpoint: null, queue: [], gates: new Set() });
   autosave();
   await refreshQuests();
   gotoScreen('quests');
@@ -214,6 +223,7 @@ export async function loadGame(slot: number): Promise<void> {
       slot,
       checkpoint: save.checkpoint,
       queue: save.state.log.map((l) => l.event), // battle history survives reload
+      gates: new Set(),
       ui: { ...store.ui, playback: save.state.log.length },
     });
     gotoScreen(save.state.status === 'idle' ? 'quests' : 'adventure');
@@ -233,13 +243,13 @@ export function retryCheckpoint(): void {
   if (!store.checkpoint) return;
   const state = structuredClone(store.checkpoint);
   state.rng = rngFromSeed(freshSeed()); // fresh luck — the same seed replays the same death
-  setStore({ game: state, queue: [] });
+  setStore({ game: state, queue: [], gates: new Set() });
   autosave();
 }
 
 export function returnToTitle(): void {
   autosave();
-  setStore({ quest: null, queue: [] });
+  setStore({ quest: null, queue: [], gates: new Set() });
   gotoScreen('title');
 }
 

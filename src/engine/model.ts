@@ -182,7 +182,7 @@ export type GameEvent =
   | { type: 'narrate'; text: string }
   | { type: 'sceneEnter'; sceneId: string; title: string }
   | { type: 'combatStart' }
-  | { type: 'turnStart'; who: string }
+  | { type: 'turnStart'; who: string; /** combatant id ('hero' or enemy id); absent in old saves */ actor?: string }
   | { type: 'combatEnd'; result: 'victory' | 'fled' | 'defeat' | 'death' }
   | { type: 'levelUpAvailable' }
   | { type: 'condition'; target: string; condition: ConditionName; on: boolean }

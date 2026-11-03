@@ -3,6 +3,18 @@ import { keptSum } from '../engine/rolls';
 import { AbilityLabel } from './abilityInfo';
 import type { AbilityId } from '../engine/quest/types';
 import type { JSX } from 'preact';
+import { ActorAvatar, explainPart } from './actors';
+
+/** "Your turn" / "The Rat King's turn" with the combatant's portrait. */
+export function TurnBanner({ who, actor }: { who: string; actor?: string }) {
+  const hero = who === 'hero';
+  return (
+    <div class={`turn-banner ${hero ? 'hero' : 'enemy'}`}>
+      {(actor || hero) && <ActorAvatar actor={actor ?? 'hero'} size={34} />}
+      <span>{hero ? 'Your turn' : `${who}'s turn`}</span>
+    </div>
+  );
+}
 
 /** Real die silhouettes: d4 triangle, d6 rounded square, d8 diamond,
  *  d10 kite, d12 pentagon, d20 hexagon w/ facet lines. */
@@ -23,7 +35,7 @@ function DieShape({ sides }: { sides: number }): JSX.Element {
 
 /** One die chip: silhouette + large value + caption. */
 export function DieChip({ sides, value, kept, note, nat }: {
-  sides: number; value: number; kept: boolean; note?: string; nat?: 'nat20' | 'nat1';
+  sides: number; value: number | string; kept: boolean; note?: string; nat?: 'nat20' | 'nat1';
 }) {
   return (
     <span class={`die-chip d${sides} ${kept ? '' : 'dropped'} ${nat ?? ''}`}
@@ -69,8 +81,11 @@ export function RollCard({ ev }: { ev: Extract<GameEvent, { type: 'roll' }> }) {
     ev.outcome === 'crit' ? 'Critical hit!' : ev.outcome === 'hit' ? 'Hit!' :
     ev.outcome === 'miss' ? 'Miss' : ev.outcome === 'success' ? 'Success' :
     ev.outcome === 'failure' ? 'Failed' : null;
+  const explain = explainRoll(ev);
   return (
-    <div class={`roll-card ${ev.outcome ?? ''}`}>
+    <div class={`roll-card ${ev.outcome ?? ''} ${ev.actor === 'hero' ? 'side-hero' : 'side-enemy'}`}>
+      <span class="rc-who"><ActorAvatar actor={ev.actor} size={30} /></span>
+      <div class="rc-body">
       <p class="rc-header">
         {(ev.purpose === 'save' || ev.purpose === 'check') && ev.source
           ? ev.purpose === 'save' ? (
@@ -88,13 +103,48 @@ export function RollCard({ ev }: { ev: Extract<GameEvent, { type: 'roll' }> }) {
             nat={d.sides === 20 && ev.result.nat20 && d.kept ? 'nat20' : d.sides === 20 && ev.result.nat1 && d.kept ? 'nat1' : undefined}
             note={d.kept ? undefined : dice.length > 1 && d.value === Math.max(...dice.map((x) => x.value)) ? 'disadvantage: lower die kept' : 'advantage: higher die kept'} />
         ))}
-        {parts.map((p, i) => <span key={`p${i}`}> {p.value >= 0 ? '+' : '−'} {Math.abs(p.value)} {p.label}</span>)}
+        {parts.map((p, i) => (
+          <span key={`p${i}`}> {p.value >= 0 ? '+' : '−'} {Math.abs(p.value)}{' '}
+            <abbr class="term" title={explainPart(p.label)} tabIndex={0}>{p.label}</abbr></span>
+        ))}
         <b> = {total}</b>
-        {ev.vs && <> vs {VS_NAMES[ev.vs.kind]} {ev.vs.value}</>}
+        {ev.vs && <> vs <abbr class="term" title={VS_HELP[ev.vs.kind]} tabIndex={0}>{VS_NAMES[ev.vs.kind]}</abbr> {ev.vs.value}</>}
         {outcomeTxt && <b class={`rc-outcome ${ev.outcome}`}> → {outcomeTxt}</b>}
       </p>
+      {explain && <p class="rc-explain">{explain}</p>}
+      </div>
     </div>
   );
+}
+
+const VS_HELP = {
+  armour: 'Armour Class: how hard the target is to hit. The attack total must reach this number.',
+  difficulty: 'Difficulty: the total needed to succeed.',
+};
+
+/** One plain-English sentence saying what the roll meant. */
+export function explainRoll(ev: Extract<GameEvent, { type: 'roll' }>): string | null {
+  const d20 = ev.result.rolls.find((d) => d.sides === 20 && d.kept)?.value;
+  const bonus = ev.finalTotal - (d20 ?? 0);
+  const b = bonus ? ` ${bonus > 0 ? '+' : '−'} ${Math.abs(bonus)} bonus` : '';
+  const advantage = ev.result.rolls.filter((d) => d.sides === 20).length > 1
+    ? (ev.result.rolls.find((d) => d.sides === 20 && !d.kept)!.value < d20! ? ' (rolled twice, kept the higher)' : ' (rolled twice, kept the lower)') : '';
+  const you = ev.actor === 'hero';
+  if (ev.purpose === 'attack' && ev.vs && d20 !== undefined) {
+    if (ev.result.nat20) return `A natural 20 always hits — and it's a critical: the damage dice are doubled!`;
+    if (ev.result.nat1) return 'A natural 1 always misses.';
+    return you
+      ? `You needed ${ev.vs.value} to hit ${ev.targetName ?? 'it'}: d20 rolled ${d20}${advantage}${b} = ${ev.finalTotal}.`
+      : `${ev.actorName} needed ${ev.vs.value} to hit you (your armour): d20 rolled ${d20}${advantage}${b} = ${ev.finalTotal}.`;
+  }
+  if ((ev.purpose === 'save' || ev.purpose === 'check') && ev.vs && d20 !== undefined) {
+    const ok = ev.outcome === 'success';
+    return you
+      ? `You needed ${ev.vs.value}: d20 rolled ${d20}${advantage}${b} = ${ev.finalTotal}. ${ok ? 'Made it!' : 'Not enough.'}`
+      : `${ev.actorName} needed ${ev.vs.value} to resist: rolled ${ev.finalTotal}. ${ok ? 'It resists.' : 'It fails to resist!'}`;
+  }
+  if (ev.purpose === 'initiative') return null;
+  return null;
 }
 
 const COMBAT_END_TEXT: Record<string, string> = {
@@ -130,11 +180,11 @@ export function EventCard({ ev }: { ev: GameEvent }): JSX.Element | null {
   if (ev.type === 'roll') return <RollCard ev={ev} />;
   if (ev.type === 'combatEnd')
     return <p class={`feed-line divider combat-end-${ev.result}`}>{COMBAT_END_TEXT[ev.result]}</p>;
+  if (ev.type === 'turnStart') return <TurnBanner who={ev.who} actor={ev.actor} />;
   const text = describeEventText(ev);
   if (!text) return null;
   const cls =
     ev.type === 'damage' ? 'damage' : ev.type === 'narrate' && /miss|fail/i.test(text) ? 'miss'
-    : /hit|success|defeated|saved/i.test(text) ? 'hit'
-    : ev.type === 'turnStart' ? 'divider' : '';
+    : /hit|success|defeated|saved/i.test(text) ? 'hit' : '';
   return <p class={`feed-line ${cls}`}>{text}</p>;
 }
