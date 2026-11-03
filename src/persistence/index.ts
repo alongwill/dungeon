@@ -283,9 +283,10 @@ export interface Settings {
   animations: boolean;
   rollPlaybackMs: number;
   autoRoll: boolean;
+  sound: boolean;
 }
 
-export const DEFAULT_SETTINGS: Settings = { animations: true, rollPlaybackMs: 350, autoRoll: false };
+export const DEFAULT_SETTINGS: Settings = { animations: true, rollPlaybackMs: 350, autoRoll: false, sound: true };
 
 export function loadSettings(adapter: StorageAdapter): Settings {
   const raw = adapter.get(SETTINGS_KEY);
@@ -295,6 +296,7 @@ export function loadSettings(adapter: StorageAdapter): Settings {
     return {
       animations: typeof p.animations === 'boolean' ? p.animations : true,
       autoRoll: typeof p.autoRoll === 'boolean' ? p.autoRoll : false,
+      sound: typeof p.sound === 'boolean' ? p.sound : true,
       rollPlaybackMs:
         typeof p.rollPlaybackMs === 'number' && p.rollPlaybackMs >= 0
           ? p.rollPlaybackMs === 600 ? 350 : p.rollPlaybackMs // legacy 600 → Normal

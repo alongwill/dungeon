@@ -2,7 +2,7 @@ import { isDiceExpr } from '../dice/parse';
 import { ITEMS } from '../../content/items';
 import { CLASSES } from '../../content/classes';
 import { SKILL_ABILITY, ABILITY_IDS } from '../rules';
-import { DAMAGE_TYPES, CONDITION_NAMES, ITEM_KINDS } from './schema-enums';
+import { BACKDROPS, DAMAGE_TYPES, CONDITION_NAMES, ITEM_KINDS } from './schema-enums';
 import type { Quest } from './types';
 
 export interface ValidationResult {
@@ -207,6 +207,7 @@ export function validateQuest(json: unknown): ValidationResult {
     if (!isObj(sc) || !SCENE_TYPES.includes(sc.type as string)) { err(`${p}: bad type`); continue; }
     if (!isStr(sc.title) || !isStr(sc.text)) err(`${p}: needs title and text`);
     if (sc.rest !== undefined && sc.rest !== 'short' && sc.rest !== 'long') err(`${p}: bad rest`);
+    if (sc.backdrop !== undefined && !BACKDROPS.includes(sc.backdrop as never)) err(`${p}: unknown backdrop "${String(sc.backdrop)}"`);
     checkEffects(sc.onEnter, `${p}.onEnter`);
 
     const linkChoices = (choices: unknown) => {

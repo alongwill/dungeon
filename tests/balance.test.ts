@@ -10,9 +10,11 @@ import type { ClassId, EncounterScene, Quest } from '../src/engine/quest/types';
 import type { GameState, Hero } from '../src/engine/model';
 import hollowmere from '../quests/hollowmere-bell/quest.json';
 import cellar from '../quests/template-cellar-rats/quest.json';
+import gloamwood from '../quests/gloamwood-lanterns/quest.json';
 
 const HOLLOW = hollowmere as unknown as Quest;
 const CELLAR = cellar as unknown as Quest;
+const GLOAM = gloamwood as unknown as Quest;
 
 function heroAtLevel(classId: ClassId, level: number): Hero {
   const h = createHero({
@@ -152,6 +154,11 @@ const CASES: Case[] = [
   { quest: HOLLOW, sceneId: 'crypt-fight', label: 'crypt skeletons', level: 2, minWin: 0.70, maxAvg: 0.95 },
   { quest: HOLLOW, sceneId: 'bog-lurker-scene', label: 'bog lurker', level: 2, minWin: 0.70, maxAvg: 0.95 },
   { quest: HOLLOW, sceneId: 'boss-fight', label: 'Mire King boss', level: 3, minWin: 0.45, maxAvg: 0.85 },
+  { quest: GLOAM, sceneId: 'spider-hollow', label: 'gloam spiders', level: 3, minWin: 0.70, maxAvg: 0.95 },
+  { quest: GLOAM, sceneId: 'camp-fight', label: 'gloam bandits', level: 3, minWin: 0.70, maxAvg: 0.95 },
+  { quest: GLOAM, sceneId: 'bat-swarm', label: 'cave bats', level: 3, minWin: 0.70, maxAvg: 0.95 },
+  { quest: GLOAM, sceneId: 'slime-tunnel', label: 'glow slime', level: 3, minWin: 0.70, maxAvg: 0.95 },
+  { quest: GLOAM, sceneId: 'boss-fight', label: 'Lantern Thief boss', level: 3, minWin: 0.45, maxAvg: 0.85 },
 ];
 
 const results: Record<string, Record<string, number>> = {};
@@ -187,11 +194,12 @@ const avgDice = (expr: string | number): number => {
 };
 
 describe('enemy stat floors', () => {
-  const quests = [CELLAR, HOLLOW];
+  const quests = [CELLAR, HOLLOW, GLOAM];
   const floors = new Map<string, number>([
     ['rat-king', 15],
     ['mire-troll', 20],
     ['grubnak-mire-king', 28],
+    ['vesk-lantern-thief', 28],
   ]);
   it('average HP ≥ floor, attack ≥ +3, average damage ≥ 3', () => {
     for (const q of quests) {

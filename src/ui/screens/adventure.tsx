@@ -3,7 +3,7 @@ import { Avatar } from '../../avatar/Avatar';
 import { ABILITIES } from '../../content/abilities';
 import { CLASSES } from '../../content/classes';
 import { formatRoll } from '../../engine/dice';
-import { proficiencyBonus, slotsFor } from '../../engine/rules';
+import { abilityMod, hpGainPerLevel, proficiencyBonus, slotsFor } from '../../engine/rules';
 import { evalCondition, findItem, interpolate } from '../../engine/quest/eval';
 import { EventFeed } from '../EventFeed';
 import { RollPrompt } from '../RollPrompt';
@@ -23,6 +23,12 @@ import {
   advancePlayback, dispatch, getStore, gotoScreen, manualRollPending, retryCheckpoint, setDrawer, startQuestById, useStore,
 } from '../store';
 import { DeathScreen, EndingScreen } from './meta';
+import { inferBackdrop, SceneArt } from '../art/SceneArt';
+import { useMotion } from '../motion';
+import { randomAvatar } from '../../avatar/generate';
+import { rngFromSeed } from '../../engine/dice';
+import { playSfx } from '../../sfx';
+import type { GameEvent } from '../../engine/model';
 
 const hash = (t: string) => { let h = 0; for (const c of t) h = (h * 31 + c.charCodeAt(0)) >>> 0; return h; };
 
@@ -34,12 +40,29 @@ const hpDescriptor = (hp: number, max: number) => {
 };
 
 function Bar({ value, max, label }: { value: number; max: number; label: string }) {
+  const pct = max ? Math.max(0, Math.min(100, (value / max) * 100)) : 0;
+  const tier = pct > 50 ? 'high' : pct > 25 ? 'mid' : 'low';
   return (
-    <div class="bar" role="img" aria-label={`${label}: ${value} of ${max}`}>
-      <div class="bar-fill" style={{ width: `${max ? (value / max) * 100 : 0}%` }} />
+    <div class="bar" role="img" aria-label={`${label}: ${value} of ${max}`} data-tier={value > 0 ? tier : 'low'}>
+      <div class="bar-ghost" style={{ width: `${pct}%` }} />
+      <div class="bar-fill" style={{ width: `${pct}%` }} />
       <span class="bar-text">{value}/{max}</span>
     </div>
   );
+}
+
+/** Adds `cls` for `ms` whenever `trigger` changes to a truthy new value. */
+function useFlash(trigger: unknown, ms = 450): boolean {
+  const [on, setOn] = useState(false);
+  const first = useRef(true);
+  useEffect(() => {
+    if (first.current) { first.current = false; return; }
+    if (!trigger) return;
+    setOn(true);
+    const t = setTimeout(() => setOn(false), ms);
+    return () => clearTimeout(t);
+  }, [trigger]);
+  return on;
 }
 
 const HeartIcon = () => (
@@ -65,10 +88,17 @@ function StatusBar(props: { hero: Hero }) {
     ? `Spell slots: ${slots.map((m, i) => `${ord(i + 1)} level ${m - (hero.slotsUsed[i] ?? 0)} of ${m} left`).join(', ')}. Spells use a slot; cantrips are free; slots return after a long rest.`
     : `Powers: ${resourcePips(hero).map((r) => `${r.name} ${r.left} of ${r.max} left`).join(', ')}`;
   const autoRoll = useStore((st) => st.ui.settings.autoRoll);
+  const prevHp = useRef(hero.hp);
+  const [hurtTick, setHurtTick] = useState(0);
+  useEffect(() => {
+    if (hero.hp < prevHp.current) setHurtTick((n) => n + 1);
+    prevHp.current = hero.hp;
+  }, [hero.hp]);
+  const hurt = useFlash(hurtTick);
   return (
-    <header class="statusbar">
-      <Avatar spec={hero.avatar} size={36} label="hero avatar" />
-      <span><strong>{hero.name}</strong> · L{hero.level} {CLASSES[hero.classId].name}</span>
+    <header class={`statusbar ${hurt ? 'hurt' : ''}`}>
+      <Avatar spec={hero.avatar} size={48} label="hero avatar" />
+      <span class="who"><strong>{hero.name}</strong><span>Level {hero.level} {CLASSES[hero.classId].name}</span></span>
       <span class="gold">{hero.gold} gp</span>
       <div class="vitals">
         <span class="health" aria-label={`health: ${hero.hp} of ${hero.maxHp}`}>
@@ -124,6 +154,7 @@ function PendingCard({ pending, quest }: { pending: PendingOutcome; quest: impor
   const inspireOk =
     pending.kind === 'check' && !pending.success && !pending.inspired &&
     (hero.resources['inspiration'] ?? 0) > 0;
+  useEffect(() => { if (pending.kind === 'loot') playSfx('coin'); }, [pending]);
   return (
     <div class="pending card" role="status">
       {pending.kind === 'check' && (
@@ -139,16 +170,32 @@ function PendingCard({ pending, quest }: { pending: PendingOutcome; quest: impor
         </>
       )}
       {pending.kind === 'loot' && (
-        <p>Found: {pending.gold > 0 ? `${pending.gold} gp` : ''}{' '}
-          {pending.items.map((i) => `${findItem(i.item, quest)?.name ?? i.item} ×${i.qty}`).join(', ')}</p>
+        <div class="loot-card">
+          <ChestIcon />
+          <p>Found: {pending.gold > 0 ? `${pending.gold} gp` : ''}{' '}
+            {pending.items.map((i) => `${findItem(i.item, quest)?.name ?? i.item} ×${i.qty}`).join(', ')}</p>
+        </div>
       )}
       <button class="primary" onClick={() => dispatch({ type: 'continue' })}>Continue</button>
     </div>
   );
 }
 
+const ChestIcon = () => (
+  <svg class="chest" viewBox="0 0 64 64" aria-hidden="true">
+    <ellipse cx="32" cy="22" rx="22" ry="14" fill="#ffd84a" opacity="0.25" />
+    <path d="M10 30 Q10 14 32 14 Q54 14 54 30 Z" fill="#8a5a2a" />
+    <path d="M10 30 Q10 14 32 14 Q54 14 54 30" fill="none" stroke="#c9a227" stroke-width="3" />
+    <rect x="10" y="30" width="44" height="24" rx="2" fill="#6a4220" />
+    <path d="M10 30 H54 M10 42 H54" stroke="#c9a227" stroke-width="3" />
+    <rect x="28" y="34" width="8" height="10" rx="1" fill="#f3d27a" stroke="#7a5a14" />
+    <circle cx="22" cy="26" r="3" fill="#ffe27a" /><circle cx="40" cy="24" r="2.5" fill="#ffe27a" /><circle cx="31" cy="22" r="2" fill="#fff4c0" />
+  </svg>
+);
+
 function SceneView({ scene }: { scene: Scene }) {
   const s = useStore((st) => st);
+  const motion = useMotion();
   const quest = s.quest!;
   const headingRef = useRef<HTMLHeadingElement>(null);
   useEffect(() => { headingRef.current?.focus(); }, [s.game.quest?.sceneId]);
@@ -175,13 +222,17 @@ function SceneView({ scene }: { scene: Scene }) {
 
   return (
     <article class="scene">
-      <h3 tabIndex={-1} ref={headingRef}>{scene.title}</h3>
-      {imgUrl && <img class="scene-img" src={imgUrl} alt="" />}
+      <div class="scene-banner">
+        {imgUrl
+          ? <img class="scene-img" src={imgUrl} alt="" />
+          : <SceneArt backdrop={inferBackdrop(scene, s.game.quest?.sceneId)} still={!motion} />}
+        <h3 tabIndex={-1} ref={headingRef}>{scene.title}</h3>
+      </div>
       <EventFeed queue={s.queue} playback={s.ui.playback} />
-      <div class="narration">
+      <div class={`narration ${speaker ? 'has-speaker' : ''}`}>
         {speaker && (
           <div class="speaker">
-            {speaker.avatar && <Avatar spec={speaker.avatar} size={40} label={speaker.name} />}
+            <Avatar spec={speaker.avatar ?? randomAvatar('npc', rngFromSeed(hash(speaker.name))).spec} size={52} label={speaker.name} />
             <strong>{speaker.name}{speaker.title ? `, ${speaker.title}` : ''}</strong>
           </div>
         )}
@@ -251,7 +302,9 @@ function hpText(hp: number, max: number) {
   return `${hpDescriptor(hp, max)} (${hp}/${max})`;
 }
 
-function EnemyCard({ id, targeted, onTarget }: { id: string; targeted: boolean; onTarget: () => void }) {
+function EnemyCard({ id, targeted, onTarget, hit, boss }: {
+  id: string; targeted: boolean; onTarget: () => void; hit?: 'hit' | 'crit-hit'; boss: boolean;
+}) {
   const st = useStore((st) => st);
   const e = displayState(st.game, st.queue, st.ui.playback).combat!.enemies.find((x) => x.id === id)!;
   const scene = useStore((s) => {
@@ -259,30 +312,105 @@ function EnemyCard({ id, targeted, onTarget }: { id: string; targeted: boolean; 
     return q?.enemies?.[e.defId];
   });
   const spec = scene?.avatar ?? { seed: hash(e.defId) + hash(e.id), frame: 'enemy' as const, creature: 'beast' };
+  const out = e.dead || e.fled;
   return (
-    <div class={`enemy card ${e.dead ? 'dead' : ''} ${e.fled ? 'fled' : ''}`} data-enemy-id={id}>
+    <div class={`enemy card ${e.dead ? 'dead' : ''} ${e.fled ? 'fled' : ''} ${targeted && !out ? 'targeted' : ''} ${hit ?? ''} ${boss ? 'boss' : ''}`}
+      data-enemy-id={id} data-enemy-name={e.name} onClick={() => !out && onTarget()}>
+      <span class="portrait"><Avatar spec={spec} size={boss ? 92 : 72} label={e.name} /></span>
+      <strong>{e.name}</strong>
+      <Bar value={e.hp} max={e.maxHp} label={`${e.name} hit points`} />
       <div class="row">
-        <Avatar spec={spec} size={36} label={e.name} />
-        <strong>{e.name}</strong>
+        <span class="dim">{e.fled ? 'Fled' : e.dead ? 'Defeated' : hpDescriptor(e.hp, e.maxHp)}</span>
         <span class="dim armour" title="Armour: the total an attack must reach to hit">
           <svg width="12" height="12" viewBox="0 0 24 24" aria-hidden="true" fill="currentColor"><path d="M12 2l8 3v6c0 5-3.4 9.6-8 11-4.6-1.4-8-6-8-11V5z"/></svg>
-          {' '}Armour {e.ac}
+          {' '}{e.ac}
         </span>
       </div>
-      <Bar value={e.hp} max={e.maxHp} label={`${e.name} hit points`} />
-      <span class="dim">{hpText(e.hp, e.maxHp)}</span>
+      <span class="sr-live">{hpText(e.hp, e.maxHp)}</span>
       {e.conditions.length > 0 && (
-        <span class="conds">{e.conditions.map((c) => c.name).join(', ')}</span>
+        <span class="conds">{e.conditions.map((c) => <span key={c.name}>{c.name}</span>)}</span>
       )}
-      {!e.dead && !e.fled && (
-        <button class={targeted ? 'selected' : ''} onClick={onTarget}>Target</button>
+      {!out && (
+        <button class={targeted ? 'selected' : ''} onClick={(ev) => { ev.stopPropagation(); onTarget(); }}
+          aria-pressed={targeted}>{targeted ? 'Targeted' : 'Target'}</button>
       )}
     </div>
   );
 }
 
+interface Floater { id: number; x: number; y: number; text: string; cls: string }
+let floaterSeq = 0;
+
+/** Turns revealed combat events into floating numbers, hit jolts, shakes and flashes. */
+function useCombatJuice(stageRef: { current: HTMLDivElement | null }, events: GameEvent[], motion: boolean) {
+  const [floaters, setFloaters] = useState<Floater[]>([]);
+  const [hits, setHits] = useState<Record<string, 'hit' | 'crit-hit'>>({});
+  const [shake, setShake] = useState(0);
+  const [hurt, setHurt] = useState(0);
+  const critPending = useRef(false);
+  useEffect(() => {
+    if (!motion || !events.length || events.length > 8 || !stageRef.current) return;
+    const stage = stageRef.current.getBoundingClientRect();
+    const at = (target: string) => {
+      const el = stageRef.current?.querySelector(target === 'hero' ? '.stage-hero .avatar' : `[data-enemy-id="${target}"] .portrait`);
+      if (!el) return { x: stage.width * 0.18, y: stage.height * 0.72 };
+      const r = el.getBoundingClientRect();
+      return { x: r.left - stage.left + r.width / 2, y: r.top - stage.top + r.height * 0.4 };
+    };
+    const add: Floater[] = [];
+    const newHits: Record<string, 'hit' | 'crit-hit'> = {};
+    const push = (target: string, text: string, cls: string) => {
+      const p = at(target);
+      const jitter = (add.length % 3 - 1) * 18;
+      add.push({ id: ++floaterSeq, x: p.x + jitter, y: p.y, text, cls });
+    };
+    for (const ev of events) {
+      if (ev.type === 'roll' && ev.purpose === 'attack') {
+        if (ev.outcome === 'crit') { critPending.current = true; if (ev.actor === 'hero') setShake((n) => n + 1); }
+        if (ev.outcome === 'miss') {
+          const cards = [...stageRef.current.querySelectorAll<HTMLElement>('.enemy:not(.dead):not(.fled)')]
+            .filter((c) => c.dataset.enemyName === ev.targetName);
+          const card = cards.find((c) => c.classList.contains('targeted')) ?? cards[0];
+          push(ev.actor === 'hero' ? card?.dataset.enemyId ?? 'hero' : 'hero', ev.result.nat1 ? 'Fumble!' : 'Miss', 'miss');
+        }
+      } else if (ev.type === 'damage' && ev.amount > 0) {
+        const crit = critPending.current;
+        critPending.current = false;
+        if (ev.target === 'hero' || ev.target === 'hero-beast') {
+          push('hero', `-${ev.amount}`, `dmg hero ${crit ? 'crit' : ''}`);
+          setHurt((n) => n + 1);
+          setShake((n) => n + 1);
+        } else {
+          push(ev.target, crit ? `${ev.amount}!` : `-${ev.amount}`, crit ? 'crit' : 'dmg');
+          newHits[ev.target] = crit ? 'crit-hit' : 'hit';
+          if (ev.hpLeft === 0) push(ev.target, 'Defeated!', 'big-text');
+        }
+      } else if (ev.type === 'heal' && ev.amount > 0) {
+        push('hero', `+${ev.amount}`, 'heal');
+      } else if (ev.type === 'combatEnd' && ev.result === 'victory') {
+        add.push({ id: ++floaterSeq, x: stage.width / 2, y: stage.height * 0.45, text: 'Victory!', cls: 'crit' });
+      }
+    }
+    if (add.length) {
+      setFloaters((f) => [...f, ...add]);
+      const ids = new Set(add.map((a) => a.id));
+      setTimeout(() => setFloaters((f) => f.filter((x) => !ids.has(x.id))), 1300);
+    }
+    if (Object.keys(newHits).length) {
+      setHits((h) => ({ ...h, ...newHits }));
+      setTimeout(() => setHits((h) => {
+        const n = { ...h };
+        for (const k of Object.keys(newHits)) delete n[k];
+        return n;
+      }), 450);
+    }
+  }, [events]);
+  return { floaters, hits, shaking: useFlash(shake, 350), hurting: useFlash(hurt, 600) };
+}
+
 function CombatScreen() {
   const s = useStore((st) => st);
+  const motion = useMotion();
   const shown = displayState(s.game, s.queue, s.ui.playback);
   const combat = shown.combat!;
   const hero = shown.hero!;
@@ -295,9 +423,13 @@ function CombatScreen() {
   const ht = combat.heroTurn;
   const alive = combat.enemies.filter((e) => !e.dead && !e.fled);
   const tgt = target && alive.some((e) => e.id === target) ? target : alive[0]?.id;
+  const scene = s.quest && s.game.quest ? s.quest.scenes[s.game.quest.sceneId] : undefined;
+  const bossId = scene?.type === 'encounter' && scene.boss
+    ? combat.enemies.reduce((a, b) => (b.maxHp > a.maxHp ? b : a)).id : null;
 
   const playing = s.ui.playback < s.queue.length;
   const combatRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const fxRef = useRef<FxHandle | null>(null);
   const webgl = detectWebGL();
   const reduced = typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -308,23 +440,28 @@ function CombatScreen() {
     void mountFx(combatRef.current).then((h) => { if (dead) h?.dispose(); else fxRef.current = h; });
     return () => { dead = true; fxRef.current?.dispose(); fxRef.current = null; };
   }, [fxOn]);
-  // feed events to fx as playback reveals them; last playback event index
-  const lastPlayed = useRef(-1); // -1 = fx not yet mounted — don't replay history
+  // events newly revealed by playback since the last render (history is never replayed)
+  const seen = useRef(s.ui.playback);
+  const [revealed, setRevealed] = useState<GameEvent[]>([]);
   useEffect(() => {
+    const from = seen.current;
+    seen.current = s.ui.playback;
+    if (s.ui.playback <= from) return;
+    const evs = s.queue.slice(from, s.ui.playback);
+    setRevealed(evs);
     const fx = fxRef.current;
-    if (!fx) return;
-    if (lastPlayed.current < 0) { lastPlayed.current = s.ui.playback; return; }
-    while (lastPlayed.current < s.ui.playback) {
-      const ev = s.queue[lastPlayed.current]!;
-      lastPlayed.current++;
-      const tgtEl = combatRef.current?.querySelector(`[data-enemy-id="${(ev as { target?: string }).target ?? ''}"]`);
-      fx.play(ev, {
-        targetRect: tgtEl?.getBoundingClientRect(),
-        heroRect: combatRef.current?.querySelector('.hero-conds')?.getBoundingClientRect(),
-      });
+    if (fx && evs.length > 6) fx.cancel(); // skip flushed the queue — stop in-flight effects
+    else if (fx) {
+      for (const ev of evs) {
+        const tgtEl = combatRef.current?.querySelector(`[data-enemy-id="${(ev as { target?: string }).target ?? ''}"] .portrait`);
+        fx.play(ev, {
+          targetRect: tgtEl?.getBoundingClientRect(),
+          heroRect: combatRef.current?.querySelector('.stage-hero')?.getBoundingClientRect(),
+        });
+      }
     }
-    if (!playing) fx.cancel(); // skip flushed the queue — stop in-flight effects
-  }, [s.ui.playback, playing]);
+  }, [s.ui.playback]);
+  const juice = useCombatJuice(stageRef, revealed, motion);
 
   const actionOpen = ht ? (!ht.actionUsed || ht.extraAction) : false;
   const bonusOpen = ht ? !ht.bonusUsed : false;
@@ -338,20 +475,42 @@ function CombatScreen() {
   return (
     <div class="combat" ref={combatRef}>
       <ol class="initiative" aria-label="initiative order">
-        {combat.order.map((id, i) => (
-          <li key={id} class={i === combat.turnIndex ? 'current' : ''}>
-            {id === 'hero' ? hero.name : combat.enemies.find((e) => e.id === id)?.name ?? id}
-          </li>
-        ))}
+        {combat.order.map((id, i) => {
+          const en = combat.enemies.find((e) => e.id === id);
+          return (
+            <li key={id} class={`${i === combat.turnIndex ? 'current' : ''} ${id === 'hero' ? 'is-hero' : ''} ${en && (en.dead || en.fled) ? 'gone' : ''}`}>
+              {id === 'hero' ? hero.name : en?.name ?? id}
+            </li>
+          );
+        })}
       </ol>
-      <div class="enemies">
-        {combat.enemies.map((e) => (
-          <EnemyCard key={e.id} id={e.id} targeted={tgt === e.id} onTarget={() => setTarget(e.id)} />
-        ))}
-      </div>
-      <div class="hero-conds dim">
-        {hero.conditions.map((c) => <span key={c.name} class="cond">{c.name}</span>)}
-        {combat.beastHp > 0 && <span class="cond">beast health {combat.beastHp}</span>}
+      <div class={`stage ${juice.shaking ? 'shake' : ''}`} ref={stageRef}>
+        <SceneArt backdrop={scene ? inferBackdrop(scene, s.game.quest?.sceneId) : 'road'} still={!motion} />
+        <span class="round">Round {combat.round}</span>
+        {hero.hp > 0 && hero.hp / hero.maxHp <= 0.25 && motion && <div class="low-hp" />}
+        <div class="enemies">
+          {combat.enemies.map((e) => (
+            <EnemyCard key={e.id} id={e.id} targeted={tgt === e.id} onTarget={() => setTarget(e.id)}
+              hit={juice.hits[e.id]} boss={e.id === bossId} />
+          ))}
+        </div>
+        <div class="stage-hero">
+          <Avatar spec={hero.avatar} size={56} label={hero.name} />
+          <div>
+            <strong>{hero.name}</strong>
+            <Bar value={hero.hp} max={hero.maxHp} label="Your hit points" />
+            <div class="hero-conds">
+              {hero.conditions.map((c) => <span key={c.name} class="cond">{c.name}</span>)}
+              {combat.beastHp > 0 && <span class="cond">beast form {combat.beastHp}</span>}
+            </div>
+          </div>
+        </div>
+        <div class={`hurt-vignette ${juice.hurting ? 'on' : ''}`} />
+        <div class="floaters" aria-hidden="true">
+          {juice.floaters.map((f) => (
+            <span key={f.id} class={`floater ${f.cls}`} style={{ left: `${f.x}px`, top: `${f.y}px` }}>{f.text}</span>
+          ))}
+        </div>
       </div>
       {combat.result && settled && (
         <div ref={(el) => el?.closest('.combat')?.querySelector('.feed')?.scrollTo({ top: 1e9 })} class={`result-banner ${combat.result}`} role="status">
@@ -524,10 +683,25 @@ function LevelUpModal() {
   const needsAsi = nextLevel === 4;
   const asiTotal = Object.values(asi).reduce((a, b) => a + b, 0);
   const confirm = () => dispatch({ type: 'levelUp', ...(needsAsi ? { asi: asi as never } : {}) });
+  useEffect(() => { playSfx('levelup'); }, []);
+  const cls = CLASSES[hero.classId];
+  const hpGain = hpGainPerLevel(cls.hitDie, abilityMod(hero.abilities.CON));
+  const oldSlots = slotsFor(hero.classId, hero.level), newSlots = slotsFor(hero.classId, nextLevel);
+  const slotGains = newSlots.map((n, i) => n - (oldSlots[i] ?? 0)).map((d, i) => (d > 0 ? `+${d} ${ord(i + 1)}-level slot${d > 1 ? 's' : ''}` : '')).filter(Boolean);
+  const newAbilities = cls.abilities.map((id) => ABILITIES[id]!).filter((a) => a.minLevel === nextLevel);
+  const profUp = proficiencyBonus(nextLevel) > proficiencyBonus(hero.level);
   return (
     <div class="modal-backdrop" role="dialog" aria-modal="true" aria-label="level up">
-      <div class="modal card">
-        <h3>Level up → {nextLevel}!</h3>
+      <div class="modal card levelup">
+        <div class="rays" aria-hidden="true" />
+        <p class="dim">{hero.name} grows stronger</p>
+        <h3>Level {nextLevel}!</h3>
+        <ul class="gains">
+          <li>+{hpGain} maximum health</li>
+          {slotGains.map((g) => <li key={g}>{g}</li>)}
+          {profUp && <li>Proficiency bonus +{proficiencyBonus(nextLevel)}</li>}
+          {newAbilities.map((a) => <li key={a.id}>New: <strong>{a.name}</strong></li>)}
+        </ul>
         {needsAsi && (
           <div>
             <p>Ability Score Improvement: +2 to one score, or +1 to two.</p>
@@ -600,15 +774,18 @@ export function QuestSelectScreen() {
           const bad = q.errors.length > 0;
           return (
             <div class="card quest" key={q.id}>
-              <h3>{q.title} {done && <span class="badge">completed</span>}</h3>
-              <p>{q.summary}</p>
-              <p class="dim">Level {q.recommendedLevel ?? 1}+ · ~{q.estimatedMinutes ?? '?'} min</p>
-              {bad ? (
-                <details><summary>Invalid quest ({q.errors.length} errors)</summary>
-                  <ul>{q.errors.map((e, i) => <li key={i}>{e}</li>)}</ul></details>
-              ) : (
-                <button onClick={() => void startQuestById(q.id)}>Begin</button>
-              )}
+              <SceneArt backdrop={q.cover} still />
+              <div class="quest-body">
+                <h3>{q.title} {done && <span class="badge">completed</span>}</h3>
+                <p>{q.summary}</p>
+                <p class="dim">Level {q.recommendedLevel ?? 1}+ · ~{q.estimatedMinutes ?? '?'} min</p>
+                {bad ? (
+                  <details><summary>Invalid quest ({q.errors.length} errors)</summary>
+                    <ul>{q.errors.map((e, i) => <li key={i}>{e}</li>)}</ul></details>
+                ) : (
+                  <button class="primary" onClick={() => void startQuestById(q.id)}>Begin</button>
+                )}
+              </div>
             </div>
           );
         })}

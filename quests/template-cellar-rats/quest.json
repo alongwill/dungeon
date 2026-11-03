@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "template-cellar-rats",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "title": "Rats in the Cellar",
   "summary": "Marta the innkeeper has a rat problem. Giant rats. With opinions.",
   "author": "Dungeon",
@@ -221,6 +221,7 @@
     },
     "thrown-out": {
       "type": "ending",
+      "backdrop": "inn",
       "outcome": "defeat",
       "xp": 10,
       "title": "Bitten and Bruised",

@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "hollowmere-bell",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "title": "The Bell Beneath Hollowmere",
   "summary": "The silver bell that keeps the marsh-mist out of Hollowmere has been stolen, and the mist is already curling around the doorframes.",
   "author": "Dungeon",
@@ -676,6 +676,7 @@
     },
     "hermit-favour": {
       "type": "dialogue",
+      "backdrop": "marsh",
       "title": "The hermit's price",
       "speaker": "mother-sedge",
       "text": "Mother Sedge rummages in a basket and produces a charm of woven sedge strung with a bead of river-moonstone, pale as a thumbnail.\n\n\"Moon-ward, the old priest called these \u2014 he made them before he went holy-mad and wandered off. Grubnak believes them *powerful*. He was raised on chapel stories, poor lamb: moon-charms frighten him half to death. Show him that, and even if it's as magical as a teacup, you'll have his attention.\n\nTake a poultice too. You'll need it or you won't, but either way it's off my shelf.\"",
@@ -1243,6 +1244,7 @@
     },
     "bell-recovered": {
       "type": "narration",
+      "backdrop": "road",
       "title": "The bell is yours",
       "text": "You cut the silver bell down from its reed gibbet. It's heavier than it looks \u2014 bells always are \u2014 and cool to the touch, as if it remembers every dusk it ever rang.\n\nOn the road back, a merchant's wagon squelches up beside you. The driver eyes the bell, then your scars, then the bell again, and makes an offer that's honestly quite flattering. Marsh-silver, he says, fetches a pretty price on the coast.\n\nHollowmere's smoke is just visible over the rise.",
       "choices": [
@@ -1276,6 +1278,7 @@
     },
     "peace-ending": {
       "type": "ending",
+      "backdrop": "village",
       "outcome": "victory",
       "xp": 400,
       "onEnter": [

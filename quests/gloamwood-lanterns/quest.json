@@ -1,0 +1,404 @@
+{
+  "schemaVersion": 1,
+  "id": "gloamwood-lanterns",
+  "version": "1.0.0",
+  "title": "The Lanterns of Gloamwood",
+  "summary": "For two hundred years the everflame lanterns have lit the road through Gloamwood. Now they are going dark one by one, travellers are vanishing, and something in the trees has started to whisper.",
+  "author": "Dungeon",
+  "recommendedLevel": 3,
+  "estimatedMinutes": 30,
+  "start": "wayhouse",
+  "flags": { "flickerFriend": false, "towerLore": false, "campQuiet": false },
+  "npcs": {
+    "keeper-halvard": {
+      "name": "Halvard",
+      "title": "Keeper of the Wayhouse",
+      "avatar": { "seed": 211, "skin": "brown", "hair": "bald", "hairColour": "white", "eyes": "sleepy", "mouth": "smile", "accessory": "scar", "frame": "npc" }
+    },
+    "flicker": {
+      "name": "Flicker",
+      "title": "A lost lantern-flame",
+      "avatar": { "seed": 0, "frame": "npc", "creature": "wisp" }
+    },
+    "tamsin": {
+      "name": "Tamsin",
+      "title": "Bandit sentry",
+      "avatar": { "seed": 1, "frame": "enemy", "creature": "bandit" }
+    },
+    "vesk": {
+      "name": "Vesk, the Lantern Thief",
+      "avatar": { "seed": 2, "frame": "enemy", "creature": "bandit" }
+    }
+  },
+  "enemies": {
+    "gloam-spider": {
+      "name": "Gloam Spider",
+      "avatar": { "seed": 0, "frame": "enemy", "creature": "spider" },
+      "ac": 12,
+      "hp": "3d8",
+      "dex": 15,
+      "passivePerception": 12,
+      "xp": 100,
+      "resist": ["poison"],
+      "actions": [
+        { "name": "Venom Bite", "attack": 4, "damage": "1d6+2", "type": "piercing", "weight": 3 },
+        { "name": "Spit Web", "save": { "ability": "DEX", "dc": 12, "half": true }, "damage": "1d6", "type": "poison", "recharge": 3 }
+      ],
+      "morale": { "fleeBelowHpPct": 30 }
+    },
+    "gloam-bandit": {
+      "name": "Gloam Bandit",
+      "avatar": { "seed": 1, "frame": "enemy", "creature": "bandit" },
+      "ac": 12,
+      "hp": "3d8+2",
+      "dex": 14,
+      "passivePerception": 11,
+      "xp": 100,
+      "actions": [
+        { "name": "Cutlass", "attack": 4, "damage": "1d6+2", "type": "slashing", "weight": 3 },
+        { "name": "Thrown Knife", "attack": 4, "damage": "1d4+2", "type": "piercing", "weight": 1 }
+      ],
+      "morale": { "fleeBelowHpPct": 35 }
+    },
+    "cave-bat": {
+      "name": "Cave Bat",
+      "avatar": { "seed": 0, "frame": "enemy", "creature": "bat" },
+      "ac": 12,
+      "hp": "2d6+1",
+      "dex": 16,
+      "passivePerception": 14,
+      "xp": 40,
+      "actions": [
+        { "name": "Bite", "attack": 4, "damage": "1d4+2", "type": "piercing" }
+      ],
+      "morale": { "fleeBelowHpPct": 50 }
+    },
+    "glow-slime": {
+      "name": "Glow Slime",
+      "avatar": { "seed": 1, "frame": "enemy", "creature": "slime" },
+      "ac": 8,
+      "hp": "5d8",
+      "dex": 6,
+      "passivePerception": 6,
+      "xp": 120,
+      "resist": ["poison"],
+      "actions": [
+        { "name": "Engulf", "attack": 4, "damage": "1d8+2", "type": "poison", "weight": 3 }
+      ]
+    },
+    "hollow-shade": {
+      "name": "Hollow Shade",
+      "avatar": { "seed": 0, "frame": "enemy", "creature": "ghost" },
+      "ac": 11,
+      "hp": "3d8+2",
+      "dex": 13,
+      "passivePerception": 10,
+      "xp": 150,
+      "undead": true,
+      "immune": ["poison"],
+      "actions": [
+        { "name": "Chilling Touch", "attack": 3, "damage": "1d6+1", "type": "necrotic", "weight": 3 }
+      ]
+    },
+    "vesk-lantern-thief": {
+      "name": "Vesk, the Lantern Thief",
+      "avatar": { "seed": 2, "frame": "enemy", "creature": "bandit" },
+      "ac": 11,
+      "hp": "5d8+6",
+      "dex": 16,
+      "saves": { "DEX": 4 },
+      "passivePerception": 13,
+      "xp": 300,
+      "actions": [
+        { "name": "Rapier", "attack": 4, "damage": "1d6+1", "type": "piercing", "weight": 3 },
+        { "name": "Lantern Flash", "save": { "ability": "DEX", "dc": 12, "half": true }, "damage": "1d6", "type": "fire", "recharge": 3 }
+      ],
+      "phases": [
+        {
+          "belowHpPct": 50,
+          "text": "Vesk tears open his coat. A dozen stolen everflames blaze in their little cages, and the grotto turns the colour of a forge. \"You want the light back? HAVE IT!\"",
+          "addActions": [
+            { "name": "Everflame Burst", "attack": 4, "damage": "2d6", "type": "fire", "weight": 1 }
+          ]
+        }
+      ]
+    }
+  },
+  "items": {
+    "lantern-key": { "name": "Keeper's Lantern Key", "kind": "key", "value": 0 },
+    "everflame-shard": { "name": "Everflame Shard", "kind": "treasure", "value": 45 },
+    "spider-silk": { "name": "Gloam Silk", "kind": "treasure", "value": 30 },
+    "trail-bread": {
+      "name": "Halvard's Trail Bread",
+      "kind": "consumable",
+      "use": [{ "heal": "1d6+2" }],
+      "value": 10
+    }
+  },
+  "scenes": {
+    "wayhouse": {
+      "type": "dialogue",
+      "title": "The Last Lamp Wayhouse",
+      "backdrop": "inn",
+      "speaker": "keeper-halvard",
+      "rest": "long",
+      "text": "The Last Lamp Wayhouse is the only warm thing for ten miles, and it knows it. Halvard, its keeper, sets a bowl of stew in front of {{hero.name}} before being asked, which is how you know he wants something.\n\n\"The everflames,\" he says. \"Two hundred years those lanterns have burned along the Gloamwood road without oil or wick. Last month the first one went dark. Now it's nine. Three wagons have gone in. None have come out.\n\nFolk say the woods are whispering. I say somebody's *stealing my light*. Bring the flames back and the Lantern Guild pays two hundred gold. I'll throw in breakfast.\"",
+      "choices": [
+        { "text": "\"Who would steal a lantern-flame?\"", "goto": "wayhouse-lore" },
+        { "text": "Buy a Potion of Healing (50 gp)", "requires": { "gold": { "gte": 50 } }, "goto": "wayhouse", "effects": [{ "gold": -50 }, { "addItem": "potion-healing" }] },
+        { "text": "Buy trail bread for the road (10 gp)", "requires": { "gold": { "gte": 10 } }, "goto": "wayhouse", "effects": [{ "gold": -10 }, { "addItem": "trail-bread" }] },
+        { "text": "Head into Gloamwood", "goto": "dark-road" }
+      ]
+    },
+    "wayhouse-lore": {
+      "type": "dialogue",
+      "title": "What the keeper suspects",
+      "backdrop": "inn",
+      "speaker": "keeper-halvard",
+      "text": "\"An everflame is a little bit alive,\" Halvard says, lowering his voice as if the stew might overhear. \"The old Lantern Guild caught them as wisps and asked them, nicely, to stay. Steal one from its lantern and it's just a scared bit of fire looking for home.\n\nThere's a bandit crew camped by the old silver mine — led by a charmer called Vesk who used to apprentice with the Guild before they threw him out. And the Guild's watchtower stands ruined halfway there. The keepers left something in it, they say. Mind the spiders. They've got big this year.\"",
+      "choices": [
+        { "text": "Head into Gloamwood", "goto": "dark-road" },
+        { "text": "Back to the counter", "goto": "wayhouse" }
+      ]
+    },
+    "dark-road": {
+      "type": "narration",
+      "title": "The dark road",
+      "backdrop": "forest",
+      "text": "Beyond the wayhouse the road narrows into Gloamwood, and the trees close over it like a lid. Every hundred paces an iron lantern stands on its post — dead, cold, its little glass door hanging open.\n\nThen, off between the pines, something glimmers. A small blue flame, bobbing at head height, drifting away from the road as if it would very much like to be followed, and is too shy to say so.",
+      "choices": [
+        { "text": "Follow the little flame", "goto": "wisp-glade" },
+        { "text": "Sneak past the webbed hollow (Stealth)", "check": { "skill": "stealth", "dc": 14 },
+          "success": { "goto": "ruined-tower", "text": "You pick a path between the pale cords strung across the hollow. Something large shifts above you, considers, and decides you were the wind." },
+          "failure": { "goto": "spider-hollow", "text": "Your boot snaps one silk line. Every web in the hollow shivers at once." } },
+        { "text": "March straight down the road", "goto": "spider-hollow" }
+      ]
+    },
+    "wisp-glade": {
+      "type": "dialogue",
+      "title": "A frightened flame",
+      "backdrop": "forest",
+      "speaker": "flicker",
+      "text": "The flame stops in a glade full of ferns and turns to face you. It has two dark little eyes, and they are terribly worried.\n\n\"*You're from the road,*\" it says, in a voice like a match being struck. \"*I'm Flicker. Lantern forty-one. A man with a cage took me out and I got away but I can't get back, the door's too high and I'm — I'm going out, a little, every night.*\"\n\nFlicker's glow gutters, as if to prove it.",
+      "choices": [
+        { "text": "\"I'll get you home. Come with me.\"", "goto": "ruined-tower", "effects": [{ "setFlag": "flickerFriend", "value": true }] },
+        { "text": "Steady its flame with what you know of magic (Arcana)", "check": { "skill": "arcana", "dc": 13 },
+          "success": { "goto": "ruined-tower", "text": "You cup your hands round the wisp and murmur the old kindling words. Flicker blazes up bright as a lamp, delighted. \"*Oh! Oh, that's much better. I'm coming with you.*\"", "effects": [{ "setFlag": "flickerFriend", "value": true }, { "heal": "1d8" }] },
+          "failure": { "goto": "ruined-tower", "text": "Your spell fizzles. Flicker politely pretends it helped and drifts along beside you anyway.", "effects": [{ "setFlag": "flickerFriend", "value": true }] } },
+        { "text": "\"Not my problem, little light.\"", "goto": "spider-hollow" }
+      ]
+    },
+    "spider-hollow": {
+      "type": "encounter",
+      "title": "The webbed hollow",
+      "backdrop": "forest",
+      "text": "The road dips into a hollow strung with silk as thick as rope. Two spiders the size of ponies unfold from the canopy, eyes catching the last of the light like spilled garnets.",
+      "enemies": [{ "enemy": "gloam-spider", "count": 2 }],
+      "fleeDC": 13,
+      "victory": { "goto": "spider-loot", "text": "The last spider skitters off into the dark, minus most of its dignity and two of its legs." },
+      "flee": { "goto": "dark-road", "text": "You scramble back up out of the hollow, silk tugging at your sleeves." },
+      "defeat": { "goto": "cocooned-ending", "text": "Silk. A great deal of silk." }
+    },
+    "spider-loot": {
+      "type": "loot",
+      "title": "What the webs held",
+      "backdrop": "forest",
+      "text": "Wrapped in the webs are the remains of a merchant's pack — and a few things the spiders had no use for.",
+      "gold": "3d6+5",
+      "items": [{ "item": "spider-silk" }, { "item": "potion-healing" }],
+      "next": { "goto": "ruined-tower" }
+    },
+    "ruined-tower": {
+      "type": "narration",
+      "title": "The keepers' watchtower",
+      "backdrop": "ruins",
+      "text": "The Lantern Guild's watchtower leans out of the trees like a tired old man. Its roof is gone; its stair is half there. Carved over the door, still sharp after two centuries: *WE KEEP THE LIGHT SO THE LIGHT KEEPS US.*\n\nInside, a lectern, a rotted ledger, and a heavy iron chest with a keyhole shaped like a flame.",
+      "choices": [
+        { "text": "Search the ledger and chest (Investigation)", "check": { "skill": "investigation", "dc": 13 },
+          "success": { "goto": "tower-cache", "text": "The ledger's last page has a sketch of the chest — and, scratched beside it, where the key was hidden: in the lantern bracket over the door. Of course." },
+          "failure": { "goto": "bandit-sentry", "text": "Rot and riddles. Whatever the keepers left, they left it well. You press on toward the mine." } },
+        { "text": "Ask Flicker to look", "requires": { "flag": "flickerFriend", "eq": true }, "hideIfUnmet": true,
+          "goto": "tower-cache", "effects": [{ "setFlag": "towerLore", "value": true }] },
+        { "text": "Press on toward the mine", "goto": "bandit-sentry" }
+      ]
+    },
+    "tower-cache": {
+      "type": "loot",
+      "title": "The keepers' cache",
+      "backdrop": "ruins",
+      "text": "Inside the chest, wrapped in oilcloth: a brass key shaped like a candle flame, a purse of Guild silver, and a note in a neat old hand. *For the next keeper. Any lantern this opens will remember where it belongs.*",
+      "gold": "2d10+10",
+      "items": [{ "item": "lantern-key" }],
+      "next": { "goto": "bandit-sentry" }
+    },
+    "bandit-sentry": {
+      "type": "dialogue",
+      "title": "The camp by the mine",
+      "backdrop": "camp",
+      "speaker": "tamsin",
+      "text": "The bandit camp squats outside the old silver mine: tents, a fire, a palisade made mostly of optimism. A sentry with a red scarf over her face steps out from behind a stake and levels a crossbow at your middle.\n\n\"Far enough,\" says Tamsin. \"Vesk's busy. Vesk's always busy. State your business, and make it boring.\"",
+      "choices": [
+        { "text": "\"I'm the new recruit. Vesk sent for me.\" (Deception)", "check": { "skill": "deception", "dc": 14 },
+          "success": { "goto": "mine-mouth", "text": "Tamsin squints, shrugs, and waves you through. \"Mine's that way. Don't touch the cages.\"", "effects": [{ "setFlag": "campQuiet", "value": true }] },
+          "failure": { "goto": "camp-fight", "text": "\"Vesk doesn't *send* for anyone,\" Tamsin says, and whistles. Tents empty." } },
+        { "text": "Offer her a bribe (30 gp)", "requires": { "gold": { "gte": 30 } },
+          "goto": "mine-mouth", "effects": [{ "gold": -30 }, { "setFlag": "campQuiet", "value": true }] },
+        { "text": "\"You know those lanterns kept you safe too.\" (Persuasion)", "check": { "skill": "persuasion", "dc": 15 },
+          "success": { "goto": "mine-mouth", "text": "Tamsin's crossbow dips. \"...My gran used to walk that road at night,\" she says quietly. \"Go on. I didn't see you.\"", "effects": [{ "setFlag": "campQuiet", "value": true }] },
+          "failure": { "goto": "camp-fight", "text": "\"Lanterns don't pay,\" Tamsin says flatly, and raises the alarm." } },
+        { "text": "Draw your weapon", "goto": "camp-fight" }
+      ]
+    },
+    "camp-fight": {
+      "type": "encounter",
+      "title": "Bandits at the fire",
+      "backdrop": "camp",
+      "text": "Two bandits come round the fire at a run, cutlasses out, still chewing their supper.",
+      "enemies": [{ "enemy": "gloam-bandit", "count": 2 }],
+      "fleeDC": 13,
+      "victory": { "goto": "camp-loot", "text": "The bandits break and bolt into the trees, yelling about danger money." },
+      "flee": { "goto": "ruined-tower", "text": "You fall back into the forest. The camp is noisy behind you for a long while." },
+      "defeat": { "goto": "robbed-ending", "text": "The world goes sideways, then dark." }
+    },
+    "camp-loot": {
+      "type": "loot",
+      "title": "The bandits' takings",
+      "backdrop": "camp",
+      "text": "Beside the fire, a lockbox and a stolen crate of lantern glass. One cage is still warm.",
+      "gold": "4d6+10",
+      "items": [{ "item": "everflame-shard" }],
+      "next": { "goto": "mine-mouth" }
+    },
+    "mine-mouth": {
+      "type": "narration",
+      "title": "The old silver mine",
+      "backdrop": "cave",
+      "text": "The mine breathes cold air and a faint, sweet blue glow. Somewhere deep inside, many small lights are flickering — scared, caged, far from home.\n\nThe main shaft drops down a rickety ladder. A side tunnel slopes gently away, its walls slick with something that glows green and *moves* when you aren't looking at it directly. Above, the roof is thick with sleeping bats.",
+      "choices": [
+        { "text": "Climb down the ladder quietly (Acrobatics)", "check": { "skill": "acrobatics", "dc": 13 },
+          "success": { "goto": "grotto", "text": "Rung by rung, silent as a held breath. Not one bat stirs." },
+          "failure": { "goto": "bat-swarm", "text": "A rung snaps with a sound like a slammed door. Above you, a thousand ears unfold." } },
+        { "text": "Take the glowing side tunnel", "goto": "slime-tunnel" },
+        { "text": "Just go down the ladder", "goto": "bat-swarm" }
+      ]
+    },
+    "bat-swarm": {
+      "type": "encounter",
+      "title": "Wings in the dark",
+      "backdrop": "cave",
+      "text": "The roof comes alive. Most of the colony pours out into the night — but three big ones stay, red-eyed and very, very cross.",
+      "enemies": [{ "enemy": "cave-bat", "count": 3 }],
+      "fleeDC": 12,
+      "victory": { "goto": "grotto", "text": "The last bat flaps off to sulk in a crevice." },
+      "flee": { "goto": "mine-mouth", "text": "You duck back into the daylight with bats in your hair." },
+      "defeat": { "goto": "robbed-ending", "text": "You go down under a storm of wings." }
+    },
+    "slime-tunnel": {
+      "type": "encounter",
+      "title": "The glowing tunnel",
+      "backdrop": "cave",
+      "text": "The green glow on the walls gathers itself, slides down to the floor, and becomes a single quivering blob the size of a cart. It has, somewhere in its depths, a surprising number of swallowed coins. It also has eyes. It is smiling.",
+      "enemies": [{ "enemy": "glow-slime" }],
+      "fleeDC": 10,
+      "victory": { "goto": "slime-loot", "text": "The slime gives a last wobble and spreads out into a harmless, faintly glowing puddle." },
+      "flee": { "goto": "mine-mouth", "text": "You back away. The slime does not chase you. It is in no hurry. It never is." },
+      "defeat": { "goto": "robbed-ending", "text": "It is warm inside the slime. That is the worst part." }
+    },
+    "slime-loot": {
+      "type": "loot",
+      "title": "What the slime swallowed",
+      "backdrop": "cave",
+      "text": "In the puddle: coins, a buckle, somebody's spectacles, and an everflame shard that must have tasted terrible.",
+      "gold": "5d6+10",
+      "items": [{ "item": "everflame-shard" }, { "item": "potion-healing" }],
+      "next": { "goto": "grotto" }
+    },
+    "grotto": {
+      "type": "dialogue",
+      "title": "The grotto of stolen lights",
+      "backdrop": "cave",
+      "speaker": "vesk",
+      "text": "The tunnel opens into a crystal grotto, and the crystals are not the brightest thing in it. Dozens of little iron cages hang from the ceiling on chains, each holding a trembling everflame. In the middle of it all, polishing a cage with his sleeve, stands a lean man in a long coat with too many pockets.\n\n\"Ah,\" says Vesk. \"The Guild's hired help. You know they threw me out for *asking questions*? Two hundred years, and nobody ever asked the lights if they *wanted* to stand on a post in the rain. I'm going to sell them to people who'll appreciate them.\"\n\nBehind him, something pale and hollow drifts out of the crystal, wearing what used to be a keeper's coat.",
+      "choices": [
+        { "text": "\"Then ask them. Right now.\" (Persuasion)", "check": { "skill": "persuasion", "dc": 16, "advantageIf": { "flag": "flickerFriend", "eq": true } },
+          "success": { "goto": "redeemed-ending", "text": "Vesk hesitates — then, slowly, opens one cage. The flame inside darts straight to the tunnel mouth, toward the road. Then another. Then another. He watches them go with a face like a man watching his own argument walk out of the room. \"...They want to go home,\" he says. \"Huh.\"" },
+          "failure": { "goto": "boss-fight", "text": "\"Nice try,\" says Vesk, and the hollow thing behind him opens its mouth." } },
+        { "text": "Turn the Keeper's Lantern Key in the nearest cage", "requires": { "hasItem": "lantern-key" },
+          "goto": "redeemed-ending", "effects": [{ "xp": 50 }] },
+        { "text": "Let Flicker speak to the caged lights", "requires": { "flag": "flickerFriend", "eq": true }, "hideIfUnmet": true,
+          "check": { "skill": "insight", "dc": 12 },
+          "success": { "goto": "redeemed-ending", "text": "Flicker drifts up among the cages, chiming softly. One by one the everflames brighten until the cages glow white-hot, and every lock melts at once. Vesk drops his polishing rag. \"Oh,\" he says. \"Oh, that's *rude*.\"" },
+          "failure": { "goto": "boss-fight", "text": "Flicker tries, but Vesk claps a cage over it. \"No, no. That one's mine.\"" } },
+        { "text": "Attack", "goto": "boss-fight" }
+      ]
+    },
+    "boss-fight": {
+      "type": "encounter",
+      "title": "The Lantern Thief",
+      "backdrop": "cave",
+      "boss": true,
+      "text": "Vesk draws a slim rapier with a flourish that he has clearly practised in a mirror. The Hollow Shade slides forward beside him, cold pouring off it like water off a weir.",
+      "enemies": [{ "enemy": "vesk-lantern-thief" }, { "enemy": "hollow-shade" }],
+      "canFlee": false,
+      "victory": { "goto": "lights-freed", "text": "Vesk's rapier skitters across the crystal. The Shade unravels into a sigh. Above you, dozens of little flames press against their bars, waiting." },
+      "defeat": { "goto": "robbed-ending", "text": "Cold. Then dark. Then nothing at all." }
+    },
+    "lights-freed": {
+      "type": "narration",
+      "title": "A grotto full of stars",
+      "backdrop": "cave",
+      "text": "You open the cages one by one. The everflames pour out like sparks from a struck anvil, circle you once — twice — and stream away up the tunnel toward the road and home.\n\nVesk, tied up and sulking, nods at a sack in the corner. \"Crystals,\" he says. \"Raw everflame crystal. Worth a fortune to the right buyer. The Guild never needs to know.\"",
+      "choices": [
+        { "text": "Leave the crystals and walk him back to Halvard", "goto": "lanterns-ending" },
+        { "text": "Take the crystals and sell them yourself (+200 gp)", "goto": "sold-ending", "effects": [{ "gold": 200 }] }
+      ]
+    },
+    "lanterns-ending": {
+      "type": "ending",
+      "outcome": "victory",
+      "xp": 450,
+      "onEnter": [{ "gold": 200 }],
+      "title": "The road is lit",
+      "backdrop": "forest",
+      "text": "You walk back to the wayhouse at night, and you don't need a torch. Every hundred paces an everflame hops back into its lantern, settles, and glows — warm, steady, a little smug.\n\nHalvard is waiting on the step with breakfast, at midnight, because he promised.",
+      "epilogue": "The Lantern Guild pays its two hundred gold and makes you an honorary keeper, which comes with a hat. Vesk is put to work polishing lanterns, and — to everyone's surprise — asks each one, politely, if it's comfortable."
+    },
+    "redeemed-ending": {
+      "type": "ending",
+      "outcome": "victory",
+      "xp": 550,
+      "onEnter": [{ "gold": 200 }],
+      "title": "Every light goes home",
+      "backdrop": "cave",
+      "text": "The everflames leave the grotto in a single shining river, and Vesk walks out beside you, hands in his pockets, watching them go.\n\n\"The Guild should have asked them,\" he says at the wayhouse door. \"Every year. Somebody should.\" Halvard, after a long pause, offers him a job.",
+      "epilogue": "You saved the lights without breaking a single cage by force. Flicker lives in lantern forty-one again and flares bright whenever you pass, which the other travellers find very confusing."
+    },
+    "sold-ending": {
+      "type": "ending",
+      "outcome": "neutral",
+      "xp": 300,
+      "title": "A fortune in crystal",
+      "backdrop": "road",
+      "text": "The flames are free and the road is lit, which is what you were paid for. The crystals fetch a lovely price in the city from a buyer who asks no questions.\n\nOnly Halvard looks at you a little oddly when you collect your reward, as though he can smell the gold through your pack.",
+      "epilogue": "Somewhere in the city, a rich man's chandelier burns with stolen everflame crystal. It flickers, sometimes, the way something does when it's trying to say a word it can't quite remember."
+    },
+    "cocooned-ending": {
+      "type": "ending",
+      "outcome": "defeat",
+      "xp": 75,
+      "title": "Wrapped up",
+      "backdrop": "forest",
+      "text": "You wake hanging upside down in a silk cocoon, which is very undignified, until a woodcutter cuts you down and walks you back to the wayhouse.\n\nThe lanterns of Gloamwood stay dark. For now.",
+      "epilogue": "Halvard gives you stew and says nothing about spiders at all, which is a kindness."
+    },
+    "robbed-ending": {
+      "type": "ending",
+      "outcome": "defeat",
+      "xp": 100,
+      "title": "Lost in the dark",
+      "backdrop": "forest",
+      "text": "You wake at the edge of the wood with your boots on the wrong feet and your purse a good deal lighter. Somebody has left a lit candle beside you — so you'd find your way, presumably.\n\nThe road stays dark. Vesk's laughter, they say, can be heard some nights among the trees.",
+      "epilogue": "Next time, the keeper's tower might be worth a closer look."
+    }
+  }
+}

@@ -5,6 +5,7 @@ import { CreateScreen } from './screens/create';
 import { Notices, SettingsScreen, SlotsScreen, TitleScreen } from './screens/meta';
 import { advancePlayback, dispatch } from './store';
 import { formatRoll } from '../engine/dice';
+import { playEvents, setSfxEnabled } from '../sfx';
 import './styles.css';
 
 const ACTIONS: Record<string, string> = { c: 'character', i: 'inventory', l: 'log' };
@@ -63,6 +64,16 @@ export function App() {
     const t = setTimeout(() => advancePlayback(), s.ui.settings.rollPlaybackMs);
     return () => clearTimeout(t);
   }, [s.ui.playback, s.queue.length, s.ui.settings.rollPlaybackMs]);
+
+  // sound effects for each small batch of newly revealed events (big jumps = load/skip: silent)
+  useEffect(() => { setSfxEnabled(s.ui.settings.sound); }, [s.ui.settings.sound]);
+  const heard = useRef(0);
+  useEffect(() => {
+    const from = heard.current;
+    heard.current = s.ui.playback;
+    const n = s.ui.playback - from;
+    if (n > 0 && n <= 8 && s.ui.settings.sound) playEvents(s.queue.slice(from, s.ui.playback));
+  }, [s.ui.playback]);
 
   // aria-live announces each item as it's revealed
   useEffect(() => {

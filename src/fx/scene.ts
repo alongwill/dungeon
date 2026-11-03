@@ -23,6 +23,10 @@ export async function createFx(container: HTMLElement): Promise<FxHandle> {
 
   const scene = new THREE.Scene();
   const cam = new THREE.OrthographicCamera(0, w, 0, h, -200, 200);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const key = new THREE.DirectionalLight(0xfff0d0, 1.6);
+  key.position.set(-0.4, -0.8, 1);
+  scene.add(key);
   const center = (r?: DOMRect) => r
     ? { x: r.left - container.getBoundingClientRect().left + r.width / 2,
         y: r.top - container.getBoundingClientRect().top + r.height / 2 }
@@ -30,7 +34,7 @@ export async function createFx(container: HTMLElement): Promise<FxHandle> {
 
   const active: Active[] = [];
   let raf = 0;
-  const clock = new THREE.Clock();
+  const clock = { getElapsedTime: () => performance.now() / 1000 };
   const loop = () => {
     const now = clock.getElapsedTime() * 1000;
     for (let i = active.length - 1; i >= 0; i--) {
@@ -55,17 +59,38 @@ export async function createFx(container: HTMLElement): Promise<FxHandle> {
       if (Array.isArray(mat)) mat.forEach((x) => x.dispose()); else mat?.dispose();
     });
 
+  /** A lit, flat-shaded d20 with gold edges that tumbles in an arc and settles. */
   const die = (p: { x: number; y: number }) => {
-    const geo = new THREE.IcosahedronGeometry(16, 0);
-    const mat = new THREE.MeshBasicMaterial({ color: 0xc9a227, wireframe: true });
-    const m = new THREE.Mesh(geo, mat);
-    m.position.set(p.x, p.y, 0);
-    add(900, m, (k, o) => {
-      const mesh = o as THREE.Mesh;
-      mesh.rotation.x += (1 - k) * 0.35;
-      mesh.rotation.y += (1 - k) * 0.45;
-      (mesh.material as THREE.MeshBasicMaterial).opacity = k < 0.8 ? 1 : (1 - k) * 5;
-      (mesh.material as THREE.MeshBasicMaterial).transparent = true;
+    const geo = new THREE.IcosahedronGeometry(18, 0);
+    const g = new THREE.Group();
+    const body = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({
+      color: 0x8a1e1e, roughness: 0.35, metalness: 0.1, flatShading: true, transparent: true, side: THREE.DoubleSide,
+    }));
+    const edges = new THREE.LineSegments(new THREE.EdgesGeometry(geo),
+      new THREE.LineBasicMaterial({ color: 0xf3d27a, transparent: true }));
+    g.add(body, edges);
+    const from = { x: p.x - 90, y: p.y - 70 };
+    add(950, g, (k, o) => {
+      const e = 1 - (1 - k) ** 3;
+      o.position.set(from.x + (p.x - from.x) * e, from.y + (p.y - from.y) * e - Math.sin(e * Math.PI) * 40, 20);
+      o.rotation.x += (1 - k) * 0.4;
+      o.rotation.y += (1 - k) * 0.5;
+      o.rotation.z += (1 - k) * 0.2;
+      const op = k < 0.75 ? 1 : (1 - k) * 4;
+      (body.material as THREE.Material).opacity = op;
+      (edges.material as THREE.Material).opacity = op;
+    });
+  };
+
+  /** Expanding ring at the point of impact. */
+  const ring = (p: { x: number; y: number }, colour: number, maxR = 70) => {
+    const m = new THREE.Mesh(new THREE.RingGeometry(0.8, 1, 48),
+      new THREE.MeshBasicMaterial({ color: colour, transparent: true, side: THREE.DoubleSide }));
+    m.position.set(p.x, p.y, 5);
+    add(500, m, (k, o) => {
+      const r = 6 + maxR * (1 - (1 - k) ** 2);
+      o.scale.set(r, r, 1);
+      ((o as THREE.Mesh).material as THREE.MeshBasicMaterial).opacity = (1 - k) * 0.8;
     });
   };
 
@@ -114,11 +139,14 @@ export async function createFx(container: HTMLElement): Promise<FxHandle> {
     play(e, ctx) {
       const hero = center(ctx.heroRect);
       const target = ctx.targetRect ? center(ctx.targetRect) : hero;
-      if (e.type === 'roll' && !/Initiative/.test(e.label)) die(hero);
+      if (e.type === 'roll' && e.actor === 'hero' && e.purpose !== 'initiative' && e.purpose !== 'damage') die(hero);
+      if (e.type === 'roll' && e.outcome === 'crit') { ring(target, 0xffd84a, 110); pulse(0xffd84a); }
       if (e.type === 'damage') {
         const magic = e.damageType && !/slashing|piercing|bludgeoning/.test(e.damageType);
+        const at = e.target === 'hero' || e.target === 'hero-beast' ? hero : target;
         if (magic && ctx.heroRect && ctx.targetRect) streak(hero, target, burstColour(e.damageType));
-        burst(e.target === 'hero' || e.target === 'hero-beast' ? hero : target, burstColour(e.damageType));
+        burst(at, burstColour(e.damageType));
+        ring(at, burstColour(e.damageType), e.hpLeft === 0 ? 120 : 60);
         if (e.target === 'hero' || e.target === 'hero-beast') pulse(0xb03020);
       }
       if (e.type === 'heal') {

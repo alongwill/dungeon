@@ -1,4 +1,9 @@
-import type { ConditionName, DamageType, ItemKind } from './types';
+import type { Backdrop, ConditionName, DamageType, ItemKind } from './types';
+
+/** Built-in procedural scene backdrops (drawn by src/ui/art/SceneArt.tsx). */
+export const BACKDROPS: Backdrop[] = [
+  'village', 'road', 'marsh', 'forest', 'ruins', 'crypt', 'camp', 'cave', 'inn', 'cellar', 'throne',
+];
 
 export const DAMAGE_TYPES: DamageType[] = [
   'slashing', 'piercing', 'bludgeoning', 'fire', 'radiant', 'psychic',

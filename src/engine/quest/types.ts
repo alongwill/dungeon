@@ -113,10 +113,16 @@ export interface Choice {
 
 // ---------- Scenes ----------
 
+export type Backdrop =
+  | 'village' | 'road' | 'marsh' | 'forest' | 'ruins' | 'crypt'
+  | 'camp' | 'cave' | 'inn' | 'cellar' | 'throne';
+
 interface SceneBase {
   title: string;
   text: string;
   image?: string;
+  /** Procedural backdrop; inferred from the scene's words when absent. */
+  backdrop?: Backdrop;
   onEnter?: Effect[];
   rest?: 'short' | 'long';
 }

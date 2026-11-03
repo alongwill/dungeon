@@ -2,7 +2,8 @@ import { useMemo, useState } from 'preact/hooks';
 import { Avatar } from '../../avatar/Avatar';
 import { AbilityLabel } from '../abilityInfo';
 import { randomAvatar, suggestAvatars } from '../../avatar/generate';
-import { ACCESSORIES, EYES, HAIR_COLOURS, HAIR_STYLES, MOUTHS, SKINS } from '../../avatar/parts';
+import { ACCESSORIES, EYES, FRAME_COLOURS, HAIR_COLOURS, HAIR_STYLES, MOUTHS, SKINS } from '../../avatar/parts';
+import { ClassEmblem } from '../art/ClassEmblem';
 import { CLASSES, CLASS_IDS } from '../../content/classes';
 import { suggestName } from '../../content/names';
 import { rngFromSeed } from '../../engine/dice';
@@ -64,19 +65,25 @@ export function CreateScreen() {
         <section>
           <div class="class-grid">
             {CLASS_IDS.map((c) => (
-              <button key={c} class={`class-card ${c === classId ? 'selected' : ''}`} onClick={() => pickClass(c)}>
+              <button key={c} class={`class-card ${c === classId ? 'selected' : ''}`} onClick={() => pickClass(c)}
+                style={{ '--cls': FRAME_COLOURS[c] }}>
+                <ClassEmblem classId={c} />
                 <strong>{CLASSES[c].name}</strong>
                 <span class="dim">{CLASSES[c].role}</span>
               </button>
             ))}
           </div>
-          <div class="card">
+          <div class="card class-detail">
+            <ClassEmblem classId={classId} size={96} />
+            <div>
+            <h3>{cls.name} <span class="dim">— {cls.role}</span></h3>
             <p>Hit die d{cls.hitDie} · Health {stats.maxHp} · Armour {stats.ac}{stats.slots.length ? ` · Spell slots ${stats.slots.join('/')}` : ''}</p>
             <p class="dim">Kit: {cls.kit.items.map((k) => k.item.replace(/-/g, ' ') + (k.qty ? ` ×${k.qty}` : '')).join(', ')} · {cls.kit.gold} gp</p>
             <h4>Abilities</h4>
             <ul class="ability-list">
               {classInfoLines(classId, previewHero).map((l, i) => <li key={i}>{l}</li>)}
             </ul>
+            </div>
           </div>
         </section>
       )}
