@@ -165,6 +165,8 @@ function simulate(_quest: Quest, sceneId: string, classId: ClassId, level: numbe
 }
 
 const RUNS = 200;
+/** RUNS sims × every class takes ~5s per boss case on CI, past vitest's 5s default. */
+const SIM_TIMEOUT_MS = 30_000;
 
 interface Case { quest: Quest; sceneId: string; label: string; level: number; minWin: number; maxAvg: number }
 const CASES: Case[] = [
@@ -197,7 +199,7 @@ describe('balance', () => {
         expect(wins / RUNS, `${cls} @ ${c.label} = ${(wins / RUNS * 100).toFixed(0)}%`).toBeGreaterThanOrEqual(c.minWin);
       }
       console.log(c.label, results[c.label]);
-    });
+    }, SIM_TIMEOUT_MS);
   }
 });
 
