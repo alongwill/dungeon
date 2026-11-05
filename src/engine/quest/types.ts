@@ -25,7 +25,11 @@ export type ClassId =
   | 'druid'
   | 'wizard'
   | 'cleric'
-  | 'ranger';
+  | 'ranger'
+  | 'barbarian'
+  | 'monk'
+  | 'sorcerer'
+  | 'warlock';
 
 export type ConditionName =
   | 'hidden'
@@ -37,7 +41,10 @@ export type ConditionName =
   | 'dodging'
   | 'stunned'
   | 'wildshape'
-  | 'inspired';
+  | 'inspired'
+  | 'raging'
+  | 'reckless'
+  | 'hexed';
 
 export type DamageType =
   | 'slashing'
@@ -49,7 +56,10 @@ export type DamageType =
   | 'force'
   | 'poison'
   | 'cold'
-  | 'necrotic';
+  | 'necrotic'
+  | 'lightning'
+  | 'thunder'
+  | 'acid';
 
 export type FlagValue = number | boolean | string;
 

@@ -455,6 +455,11 @@ function restAction(
       healHero(s, r.total, events);
     }
     hero.hitDiceUsed += dice;
+    // Pact Magic: warlock slots come back on a short rest
+    if (cls.caster === 'pact' && hero.slotsUsed.some((u) => u > 0)) {
+      hero.slotsUsed = hero.slotsUsed.map(() => 0);
+      events.push({ type: 'narrate', text: 'Your patron restores your pact slots.' });
+    }
     // Arcane Recovery: restore one 1st-level slot once per long rest
     if (hero.classId === 'wizard' && (hero.resources['arcane-recovery'] ?? 0) > 0 && (hero.slotsUsed[0] ?? 0) > 0) {
       hero.resources['arcane-recovery']!--;
@@ -584,7 +589,7 @@ function levelUpAction(
   for (const [id, def] of Object.entries(cls.resources)) {
     const max = resourceMax(hero.classId, id, hero.abilities, newLevel);
     if (def.minLevel <= newLevel) {
-      hero.resources[id] = def.max === 'level5' || def.max === 'cha-mod'
+      hero.resources[id] = def.max === 'level5' || def.max === 'cha-mod' || def.max === 'level'
         ? Math.max(hero.resources[id] ?? 0, max)
         : (hero.resources[id] ?? max);
     }

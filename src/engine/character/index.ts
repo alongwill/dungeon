@@ -72,6 +72,7 @@ export function deriveStats(
     cls.kit.armour ? armourKindOf(cls.kit.armour) : undefined,
     !!cls.kit.shield,
     abilityMod(abilities.DEX),
+    cls.unarmouredDefence ? abilityMod(abilities[cls.unarmouredDefence]) : 0,
   );
   const casting = cls.castingAbility;
   const saveDC = casting ? 8 + prof + abilityMod(abilities[casting]) : 0;

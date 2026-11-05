@@ -10,6 +10,10 @@ const NAMES: Record<ClassId, string[]> = {
   wizard: ['Eldrin', 'Vex', 'Morwen', 'Pellinore', 'Iris', 'Talthus', 'Nimue', 'Oswic'],
   cleric: ['Anwen', 'Brother Aldous', 'Ceri', 'Dunstan', 'Freya', 'Lucan', 'Petra', 'Sabine'],
   ranger: ['Hart', 'Eryn', 'Falk', 'Juniper', 'Kestrel', 'Linden', 'Reed', 'Briar'],
+  barbarian: ['Grond', 'Ulfa', 'Krag', 'Brunhild', 'Torvak', 'Ysolde', 'Hrothgar', 'Magda'],
+  monk: ['Shen', 'Brother Tam', 'Lio', 'Sister Ama', 'Kai', 'Noor', 'Jin', 'Sora'],
+  sorcerer: ['Zephyra', 'Cinder', 'Valen', 'Ember', 'Draven', 'Lyric', 'Azura', 'Corin'],
+  warlock: ['Malachai', 'Hesper', 'Vesper', 'Nyx', 'Sorrow', 'Thessaly', 'Raum', 'Ilse'],
 };
 
 /** Deterministic name suggestion for a class. */

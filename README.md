@@ -1,6 +1,6 @@
 # Dungeon
 
-A single-player, turn-based fantasy RPG in the browser. Build a hero from eight classic
+A single-player, turn-based fantasy RPG in the browser. Build a hero from twelve classic
 classes and take them through hand-written quests with visible dice, branching scenes and
 tactical combat. Design spec: [docs/DESIGN.md](docs/DESIGN.md).
 

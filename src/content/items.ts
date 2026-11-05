@@ -10,6 +10,8 @@ export const ITEMS: Record<string, ItemDef> = {
   quarterstaff: { name: 'Quarterstaff', kind: 'weapon', damage: '1d6', damageType: 'bludgeoning', ability: 'STR', value: 2 },
   mace: { name: 'Mace', kind: 'weapon', damage: '1d6', damageType: 'bludgeoning', ability: 'STR', value: 5 },
   longbow: { name: 'Longbow', kind: 'weapon', damage: '1d8', damageType: 'piercing', ability: 'DEX', value: 50 },
+  greataxe: { name: 'Greataxe', kind: 'weapon', damage: '1d12', damageType: 'slashing', ability: 'STR', value: 30 },
+  dagger: { name: 'Dagger', kind: 'weapon', damage: '1d4', damageType: 'piercing', ability: 'finesse', value: 2 },
   // armour / shields
   'robe-cloth': { name: 'Robes', kind: 'armour', armour: 'light', value: 1 },
   'leather-armour': { name: 'Leather Armour', kind: 'armour', armour: 'light', value: 10 },
@@ -36,4 +38,5 @@ export const ITEMS: Record<string, ItemDef> = {
   spellbook: { name: 'Spellbook', kind: 'key', value: 50 },
   'arcane-focus': { name: 'Arcane Focus', kind: 'key', value: 10 },
   'explorers-pack': { name: "Explorer's Pack", kind: 'key', value: 10 },
+  'pact-token': { name: 'Pact Token', kind: 'key', value: 5 },
 };

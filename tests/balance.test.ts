@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { startCombat } from '../src/engine/combat';
+import { startCombat, usableBonusActions } from '../src/engine/combat';
 import { createHero, assignByPriority, STANDARD_ARRAY, deriveStats } from '../src/engine/character';
 import { step } from '../src/engine/state';
 import { initialState } from '../src/engine/state';
@@ -81,6 +81,19 @@ function heroAction(s: GameState, _quest: Quest): Parameters<typeof step>[1] | n
       !hero.conditions.some((x) => x.name === 'hidden'))
     return { type: 'useAbility', abilityId: 'cunning-hide' };
 
+  // barbarian: Rage (bonus) and Reckless Attack (free) before swinging
+  if (hero.classId === 'barbarian' && actionOpen) {
+    if (!ht.bonusUsed && !hero.conditions.some((x) => x.name === 'raging') && (hero.resources['rage'] ?? 0) > 0)
+      return { type: 'useAbility', abilityId: 'rage' };
+    if (!hero.conditions.some((x) => x.name === 'reckless'))
+      return { type: 'useAbility', abilityId: 'reckless-attack' };
+  }
+  // warlock: Hex the target first (bonus, uses a slot)
+  if (hero.classId === 'warlock' && actionOpen && !ht.bonusUsed &&
+      !c.enemies.some((e) => e.conditions.some((x) => x.name === 'hexed')) &&
+      usableBonusActions(s).some((a) => a.id === 'hex'))
+    return { type: 'useAbility', abilityId: 'hex', targetId: tgt };
+
   if (actionOpen) {
     // best affordable damaging action ability (prefer slots > cantrip > weapon)
     const cls = CLASSES[hero.classId];
@@ -120,6 +133,13 @@ function heroAction(s: GameState, _quest: Quest): Parameters<typeof step>[1] | n
       return { type: 'useAbility', abilityId: 'hunters-mark', targetId: tgt, slotLevel: 1 };
     if (hero.classId === 'bard' && (hero.resources['inspiration'] ?? 0) > 0)
       return { type: 'useAbility', abilityId: 'bardic-inspiration' };
+    const bonus = usableBonusActions(s).map((x) => x.id);
+    if (hero.classId === 'monk' && bonus.includes('flurry-of-blows'))
+      return { type: 'useAbility', abilityId: 'flurry-of-blows', targetId: tgt };
+    if (hero.classId === 'monk' && bonus.includes('martial-arts'))
+      return { type: 'useAbility', abilityId: 'martial-arts', targetId: tgt };
+    if (hero.classId === 'sorcerer' && bonus.includes('font-of-magic'))
+      return { type: 'useAbility', abilityId: 'font-of-magic' };
   }
   return { type: 'endTurn' };
 }

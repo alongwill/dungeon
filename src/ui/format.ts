@@ -31,6 +31,12 @@ export function describeAbility(def: AbilityDef, hero: Hero): string {
   if (def.special === 'second-wind') parts.push(`heals 1d10+${hero.level}`);
   if (def.special === 'wild-shape') parts.push('11 beast health, Bite +4/2d4+2');
   if (def.special === 'magic-missile') parts.push('always hits');
+  if (def.special === 'eldritch-blast' && hero.level >= 5) parts.push('two beams');
+  if (def.special === 'scorching-ray') parts.push('three rays');
+  if (def.special === 'martial-arts' || def.special === 'flurry') {
+    const dex = abilityMod(hero.abilities.DEX);
+    parts.push(`${def.special === 'flurry' ? 'two strikes' : 'one strike'}, attack +${dex + prof}, ${hero.level >= 5 ? '1d6' : '1d4'}${dex > 0 ? `+${dex}` : ''} bludgeoning, after you Attack`);
+  }
   if (parts.length === 0 && def.description) return `${def.name} — ${def.description}`;
   return `${def.name} — ${parts.join(', ')}`;
 }

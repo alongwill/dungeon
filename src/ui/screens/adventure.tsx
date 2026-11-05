@@ -14,7 +14,7 @@ import { displayState, playbackSettled } from '../display';
 import { AbilityLabel } from '../abilityInfo';
 import { detectWebGL, mountFx, shouldEnableFx, type FxHandle } from '../../fx';
 import { em } from '../em';
-import { usableBonusActions } from '../../engine/combat';
+import { lowestFreeSlot, usableBonusActions } from '../../engine/combat';
 import type { Choice, ItemDef, Scene } from '../../engine/quest/types';
 import type { Hero, PendingOutcome } from '../../engine/model';
 import { abilityCost, abilityRows, classInfoLines, describeAbility, resourcePips } from '../format';
@@ -85,7 +85,7 @@ function StatusBar(props: { hero: Hero }) {
   const lohMax = resourceMax(hero.classId, 'lay-on-hands', hero.abilities, hero.level);
   const magicLabel = caster ? 'Spell slots' : 'Powers';
   const magicAria = caster
-    ? `Spell slots: ${slots.map((m, i) => `${ord(i + 1)} level ${m - (hero.slotsUsed[i] ?? 0)} of ${m} left`).join(', ')}. Spells use a slot; cantrips are free; slots return after a long rest.`
+    ? `Spell slots: ${slots.flatMap((m, i) => m > 0 ? [`${ord(i + 1)} level ${m - (hero.slotsUsed[i] ?? 0)} of ${m} left`] : []).join(', ')}. Spells use a slot; cantrips are free; slots return after a ${CLASSES[hero.classId].caster === 'pact' ? 'short' : 'long'} rest.`
     : `Powers: ${resourcePips(hero).map((r) => `${r.name} ${r.left} of ${r.max} left`).join(', ')}`;
   const autoRoll = useStore((st) => st.ui.settings.autoRoll);
   const prevHp = useRef(hero.hp);
@@ -109,6 +109,7 @@ function StatusBar(props: { hero: Hero }) {
             <SparkleIcon /> <b>{magicLabel}</b>
             {caster
               ? slots.map((m, i) => {
+                  if (m === 0) return null;
                   const left = m - (hero.slotsUsed[i] ?? 0);
                   return <span key={i} class="pipgroup">{ord(i + 1)} <span class="pips">{pips(left, m)}</span></span>;
                 })
@@ -555,7 +556,7 @@ function CombatScreen() {
           {[...bonusAbilities.map((a) => ({ a, bonus: true })), ...heroAbilities.map((a) => ({ a, bonus: false }))].map(({ a, bonus }) => {
             const usable = bonus ? bonusOpen : actionOpen;
             const min = a.slot ?? 0;
-            const pick = slotPick[a.id] ?? min;
+            const pick = slotPick[a.id] ?? lowestFreeSlot(hero, min) ?? min;
             return (
               <div key={a.id} class="row">
                 <button disabled={!usable || !canPay(a, hero, s.game.combat !== null)}
@@ -615,10 +616,9 @@ function RulesHelp() {
 
 function canPay(a: (typeof ABILITIES)[string], hero: Hero, inCombat: boolean): boolean {
   if (a.slot !== undefined) {
-    const max = slotsFor(hero.classId, hero.level);
-    if ((hero.slotsUsed[a.slot - 1] ?? 0) >= (max[a.slot - 1] ?? 0)) return false;
+    if (lowestFreeSlot(hero, a.slot) === undefined) return false;
   }
-  if (a.resource && (hero.resources[a.resource] ?? 0) <= 0) return false;
+  if (a.resource && (hero.resources[a.resource] ?? 0) < (a.resourceCost ?? 1)) return false;
   if (a.special === 'smite') return false;
   if (!inCombat && !a.heal && a.special !== 'lay-on-hands') return false;
   return true;

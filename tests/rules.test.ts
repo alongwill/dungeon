@@ -59,8 +59,8 @@ describe('rules', () => {
 });
 
 describe('classes data', () => {
-  it('has all 8 classes', () => {
-    expect(CLASS_IDS).toHaveLength(8);
+  it('has all 12 classes', () => {
+    expect(CLASS_IDS).toHaveLength(12);
   });
   it.each(CLASS_IDS)('%s: kit items exist, abilities resolve', (id) => {
     const cls = CLASSES[id];

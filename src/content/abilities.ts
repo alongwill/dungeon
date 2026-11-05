@@ -16,6 +16,8 @@ export interface AbilityDef {
   slot?: number;
   /** Resource id consumed, if any (see ClassDef.resources). */
   resource?: string;
+  /** Resource uses consumed per use (default 1). */
+  resourceCost?: number;
   /** Weapon/spell attack to hit before applying damage. */
   attack?: { ability: 'weapon' | AbilityId; bonus?: number };
   damage?: string;
@@ -45,7 +47,16 @@ export interface AbilityDef {
     | 'turn-undead'
     | 'inspiration'
     | 'magic-missile'
-    | 'smite';
+    | 'smite'
+    | 'rage'
+    | 'reckless'
+    | 'martial-arts'
+    | 'flurry'
+    | 'chaos-bolt'
+    | 'scorching-ray'
+    | 'font-of-magic'
+    | 'eldritch-blast'
+    | 'hex';
   description?: string;
 }
 
@@ -90,5 +101,26 @@ export const ABILITIES: Record<string, AbilityDef> = Object.fromEntries(
     A({ id: 'cure-wounds-ranger', name: 'Cure Wounds', classId: 'ranger', kind: 'action', minLevel: 1, target: 'self', slot: 1, heal: '1d8', healAbility: 'WIS', description: 'Heal 1d8 + WIS.' }),
     A({ id: 'natural-explorer', name: 'Natural Explorer', classId: 'ranger', kind: 'passive', minLevel: 1, target: 'none', description: 'Advantage on Survival checks. Extra Attack at L5.' }),
     A({ id: 'extra-attack-ranger', name: 'Extra Attack', classId: 'ranger', kind: 'passive', minLevel: 5, target: 'none', description: 'The Attack action makes two attacks.' }),
+    // Barbarian
+    A({ id: 'rage', name: 'Rage', classId: 'barbarian', kind: 'bonus', minLevel: 1, target: 'self', resource: 'rage', special: 'rage', description: 'For the combat: +2 damage with Strength weapon hits, and half damage from slashing, piercing and bludgeoning.' }),
+    A({ id: 'reckless-attack', name: 'Reckless Attack', classId: 'barbarian', kind: 'free', minLevel: 1, target: 'self', special: 'reckless', description: 'Advantage on your attacks this turn, but enemies have advantage against you until your next turn.' }),
+    A({ id: 'extra-attack-barbarian', name: 'Extra Attack', classId: 'barbarian', kind: 'passive', minLevel: 5, target: 'none', description: 'The Attack action makes two attacks.' }),
+    // Monk
+    A({ id: 'martial-arts', name: 'Martial Arts', classId: 'monk', kind: 'bonus', minLevel: 1, target: 'enemy', special: 'martial-arts', description: 'After you take the Attack action: one unarmed strike, 1d4 + DEX bludgeoning (1d6 at level 5).' }),
+    A({ id: 'flurry-of-blows', name: 'Flurry of Blows', classId: 'monk', kind: 'bonus', minLevel: 2, target: 'enemy', resource: 'ki', special: 'flurry', description: 'After you take the Attack action: two unarmed strikes.' }),
+    A({ id: 'patient-defense', name: 'Patient Defense', classId: 'monk', kind: 'bonus', minLevel: 2, target: 'self', resource: 'ki', condition: { name: 'dodging', rounds: 1, on: 'self' }, description: 'Dodge as a bonus action: attacks against you have disadvantage until your next turn.' }),
+    A({ id: 'extra-attack-monk', name: 'Extra Attack', classId: 'monk', kind: 'passive', minLevel: 5, target: 'none', description: 'The Attack action makes two attacks.' }),
+    // Sorcerer
+    A({ id: 'shocking-grasp', name: 'Shocking Grasp', classId: 'sorcerer', kind: 'action', minLevel: 1, target: 'enemy', attack: { ability: 'CHA' }, damage: '1d8', damageType: 'lightning', scalesAt: { level: 5, damage: '2d8' }, description: 'Spell attack, 1d8 lightning.' }),
+    A({ id: 'chaos-bolt', name: 'Chaos Bolt', classId: 'sorcerer', kind: 'action', minLevel: 1, target: 'enemy', slot: 1, attack: { ability: 'CHA' }, damage: '2d8+1d6', special: 'chaos-bolt', upcast: { dice: '1d6' }, description: 'Spell attack, 2d8+1d6 of a random damage type. If both d8s match, the bolt leaps to another enemy.' }),
+    A({ id: 'thunderwave', name: 'Thunderwave', classId: 'sorcerer', kind: 'action', minLevel: 1, target: 'all-enemies', slot: 1, damage: '2d8', damageType: 'thunder', save: { ability: 'CON', half: true }, upcast: { dice: '1d8' }, description: 'All enemies CON save; 2d8 thunder, half on success.' }),
+    A({ id: 'font-of-magic', name: 'Font of Magic', classId: 'sorcerer', kind: 'bonus', minLevel: 2, target: 'self', resource: 'sorcery-points', resourceCost: 2, special: 'font-of-magic', description: 'Spend 2 sorcery points to regain an expended 1st-level slot.' }),
+    A({ id: 'scorching-ray', name: 'Scorching Ray', classId: 'sorcerer', kind: 'action', minLevel: 3, target: 'enemy', slot: 2, attack: { ability: 'CHA' }, damage: '2d6', damageType: 'fire', special: 'scorching-ray', upcast: { bonusDice: 1 }, description: 'Three rays, each a spell attack for 2d6 fire. One extra ray per slot level above 2nd.' }),
+    // Warlock
+    A({ id: 'eldritch-blast', name: 'Eldritch Blast', classId: 'warlock', kind: 'action', minLevel: 1, target: 'enemy', attack: { ability: 'CHA' }, damage: '1d10', damageType: 'force', special: 'eldritch-blast', description: 'Spell attack, 1d10 force. Two beams at level 5.' }),
+    A({ id: 'hex', name: 'Hex', classId: 'warlock', kind: 'bonus', minLevel: 1, target: 'enemy', slot: 1, special: 'hex', condition: { name: 'hexed', rounds: 'combat', on: 'target' }, description: '+1d6 necrotic on each of your hits vs the target.' }),
+    A({ id: 'arms-of-hadar', name: 'Arms of Hadar', classId: 'warlock', kind: 'action', minLevel: 1, target: 'all-enemies', slot: 1, damage: '2d6', damageType: 'necrotic', save: { ability: 'STR', half: true }, upcast: { dice: '1d6' }, description: 'All enemies STR save; 2d6 necrotic, half on success.' }),
+    A({ id: 'dark-ones-blessing', name: "Dark One's Blessing", classId: 'warlock', kind: 'passive', minLevel: 1, target: 'none', description: 'When you drop an enemy to 0 health, regain CHA modifier + level health.' }),
+    A({ id: 'agonizing-blast', name: 'Agonizing Blast', classId: 'warlock', kind: 'passive', minLevel: 2, target: 'none', description: 'Add your CHA modifier to Eldritch Blast damage.' }),
   ].map((a) => [a.id, a]),
 );

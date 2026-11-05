@@ -51,19 +51,26 @@ export const HALF_CASTER_SLOTS: number[][] = [
   [],
   [1], [2], [3], [3], [4, 2],
 ];
+/** Warlock Pact Magic: few slots, all of the highest slot level, back on a short rest. */
+export const PACT_SLOTS: number[][] = [
+  [],
+  [1], [2], [0, 2], [0, 2], [0, 0, 2],
+];
 
 /** Armour Class from equipment. armour: none|light|medium|heavy. */
 export function computeAC(
   armour: 'light' | 'medium' | 'heavy' | undefined,
   shield: boolean,
   dexMod: number,
+  /** Unarmoured Defence modifier, applied only with no armour. */
+  unarmouredMod = 0,
 ): number {
   let ac: number;
   switch (armour) {
     case 'light': ac = 11 + dexMod; break;
     case 'medium': ac = 14 + Math.min(dexMod, 2); break;
     case 'heavy': ac = 16; break;
-    default: ac = 10 + dexMod;
+    default: ac = 10 + dexMod + unarmouredMod;
   }
   return ac + (shield ? 2 : 0);
 }
@@ -78,7 +85,9 @@ export const MAX_SHORT_RESTS = 2;
 /** Spell slots for a class at a level (index 0 = 1st-level slots). */
 export function slotsFor(classId: ClassId, level: number): number[] {
   const cls = CLASSES[classId];
-  const table = cls.caster === 'full' ? FULL_CASTER_SLOTS : cls.caster === 'half' ? HALF_CASTER_SLOTS : null;
+  const table = cls.caster === 'full' ? FULL_CASTER_SLOTS
+    : cls.caster === 'half' ? HALF_CASTER_SLOTS
+    : cls.caster === 'pact' ? PACT_SLOTS : null;
   return [...(table?.[level] ?? [])];
 }
 
@@ -92,6 +101,7 @@ export function resourceMax(
   const def = CLASSES[classId].resources[resourceId];
   if (!def) return 0;
   if (def.max === 'cha-mod') return Math.max(1, abilityMod(abilities.CHA));
+  if (def.max === 'level') return level;
   if (def.max === 'level5') return 5 * level;
   return def.max;
 }

@@ -1,14 +1,14 @@
 import type { AbilityId, ClassId, SkillId } from '../engine/quest/types';
 
-export type CasterType = 'full' | 'half' | 'none';
+export type CasterType = 'full' | 'half' | 'pact' | 'none';
 export type ResourcePer = 'short' | 'long';
 
 export interface ResourceDef {
   name: string;
   per: ResourcePer;
   minLevel: number;
-  /** Fixed number, or 'cha-mod' (min 1), or 'level' (5 × level for lay-on-hands pool ×5). */
-  max: number | 'cha-mod' | 'level5';
+  /** Fixed number, or 'cha-mod' (min 1), 'level', or 'level5' (5 × level, the lay-on-hands pool). */
+  max: number | 'cha-mod' | 'level' | 'level5';
 }
 
 export interface ClassDef {
@@ -23,6 +23,8 @@ export interface ClassDef {
   abilityPriority: AbilityId[];
   caster: CasterType;
   castingAbility?: AbilityId;
+  /** Unarmoured Defence: with no armour on, AC adds this ability's mod. */
+  unarmouredDefence?: AbilityId;
   resources: Record<string, ResourceDef>;
   abilities: string[]; // ability ids, each with its own minLevel
   kit: { items: { item: string; qty?: number }[]; gold: number; weapon: string; armour?: string; shield?: string };
@@ -169,6 +171,74 @@ export const CLASSES: Record<ClassId, ClassDef> = {
         { item: 'shortsword', qty: 2 }, { item: 'explorers-pack' }, { item: 'potion-healing' },
       ],
       gold: 10, weapon: 'longbow', armour: 'leather-armour',
+    },
+  },
+  barbarian: {
+    id: 'barbarian', name: 'Barbarian', role: 'Raging brute, shrugs off blows',
+    hitDie: 12, saves: ['STR', 'CON'],
+    skills: ['athletics', 'intimidation', 'survival', 'perception'], expertise: [],
+    abilityPriority: ['STR', 'CON', 'DEX', 'WIS', 'CHA', 'INT'],
+    caster: 'none', unarmouredDefence: 'CON',
+    resources: {
+      rage: { name: 'Rage', per: 'long', minLevel: 1, max: 2 },
+    },
+    abilities: ['rage', 'reckless-attack', 'extra-attack-barbarian'],
+    kit: {
+      items: [
+        { item: 'greataxe' }, { item: 'explorers-pack' }, { item: 'potion-healing' },
+      ],
+      gold: 10, weapon: 'greataxe',
+    },
+  },
+  monk: {
+    id: 'monk', name: 'Monk', role: 'Martial artist, flurries of blows',
+    hitDie: 8, saves: ['STR', 'DEX'],
+    skills: ['acrobatics', 'stealth', 'insight', 'athletics'], expertise: [],
+    abilityPriority: ['DEX', 'WIS', 'CON', 'STR', 'INT', 'CHA'],
+    caster: 'none', unarmouredDefence: 'WIS',
+    resources: {
+      ki: { name: 'Ki', per: 'short', minLevel: 2, max: 'level' },
+    },
+    abilities: ['martial-arts', 'flurry-of-blows', 'patient-defense', 'extra-attack-monk'],
+    kit: {
+      items: [
+        { item: 'shortsword' }, { item: 'explorers-pack' }, { item: 'potion-healing', qty: 2 },
+      ],
+      gold: 5, weapon: 'shortsword',
+    },
+  },
+  sorcerer: {
+    id: 'sorcerer', name: 'Sorcerer', role: 'Wild innate magic, raw power',
+    hitDie: 6, saves: ['CON', 'CHA'],
+    skills: ['arcana', 'deception', 'intimidation', 'persuasion'], expertise: [],
+    abilityPriority: ['CHA', 'DEX', 'CON', 'WIS', 'INT', 'STR'],
+    caster: 'full', castingAbility: 'CHA',
+    resources: {
+      'sorcery-points': { name: 'Sorcery Points', per: 'long', minLevel: 2, max: 'level' },
+    },
+    abilities: ['shocking-grasp', 'chaos-bolt', 'thunderwave', 'font-of-magic', 'scorching-ray'],
+    kit: {
+      items: [
+        { item: 'robe-cloth' }, { item: 'dagger' }, { item: 'arcane-focus' },
+        { item: 'potion-healing', qty: 2 },
+      ],
+      gold: 10, weapon: 'dagger', armour: 'robe-cloth',
+    },
+  },
+  warlock: {
+    id: 'warlock', name: 'Warlock', role: 'Pact caster, eldritch blasts and curses',
+    hitDie: 8, saves: ['WIS', 'CHA'],
+    skills: ['arcana', 'deception', 'intimidation', 'investigation'], expertise: [],
+    abilityPriority: ['CHA', 'DEX', 'CON', 'WIS', 'INT', 'STR'],
+    caster: 'pact', castingAbility: 'CHA',
+    resources: {},
+    abilities: ['eldritch-blast', 'hex', 'arms-of-hadar', 'dark-ones-blessing', 'agonizing-blast'],
+    kit: {
+      items: [
+        { item: 'leather-armour' }, { item: 'dagger' }, { item: 'pact-token' },
+        { item: 'potion-healing', qty: 2 },
+      ],
+      gold: 10, weapon: 'dagger', armour: 'leather-armour',
     },
   },
 };
