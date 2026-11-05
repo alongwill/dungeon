@@ -10,7 +10,7 @@ resolution is listed under "Decisions" at the end.
 
 *Dungeon* is a single-player, turn-based fantasy RPG in the browser. The game is your Dungeon
 Master. It narrates scenes, offers choices, calls for skill checks and runs combat with visible
-dice. You build one hero from eight classic classes, then take that hero through hand-written
+dice. You build one hero from twelve classic classes, then take that hero through hand-written
 quests. Each quest is a short, branching adventure lasting 20–40 minutes. A character survives
 between quests, so a level-2 Ranger who finishes one quest can carry their gold, gear and XP into
 the next.
@@ -126,13 +126,16 @@ dice.
 | `dodging` | Attacks against the bearer have disadvantage until their next turn. |
 | `stunned` | The bearer loses their turn. |
 | `wildshape` | The druid's beast form (§3). |
+| `raging` | The barbarian's Rage: +2 damage on STR weapon hits, half damage from slashing, piercing and bludgeoning. |
+| `reckless` | Advantage on the bearer's attacks, and attacks against the bearer have advantage, until their next turn. |
+| `hexed` | The warlock deals +1d6 necrotic to this target on each hit (Hex). |
 
 Every condition has a duration in rounds or `combat`, and is cleared when combat ends.
 Concentration is left out (see §8). Instead, sustained spells end with the combat.
 
 ### 2.8 Spell slots and resources
 
-- **Full casters** (Wizard, Cleric, Druid, Bard) get **cantrips**, which can be cast at will,
+- **Full casters** (Wizard, Cleric, Druid, Bard, Sorcerer) get **cantrips**, which can be cast at will,
   plus spell slots:
 
   | Level | 1st | 2nd | 3rd |
@@ -154,7 +157,11 @@ Concentration is left out (see §8). Instead, sustained spells end with the comb
   | 4 | 3 | – |
   | 5 | 4 | 2 |
 
-- **Martial classes** (Fighter, Rogue) have no slots. They use **per-rest ability uses**
+- **Pact casters** (Warlock) get few slots, all of the highest slot level they can cast, and they
+  return on a **short rest**: 1× 1st at L1, 2× 1st at L2, 2× 2nd at L3 and L4, 2× 3rd at L5.
+  A spell cast from a pact slot is upcast to that slot's level.
+
+- **Martial classes** (Fighter, Rogue, Barbarian, Monk) have no slots. They use **per-rest ability uses**
   instead, shown in the same "Magic" area of the UI as "Resources".
 - A spell is cast from a slot of its level or higher. Upcasting does add the spell's
   `upcast` dice when a higher slot is used. This is cheap to implement because it is data-driven.
@@ -166,6 +173,7 @@ Concentration is left out (see §8). Instead, sustained spells end with the comb
   - The player may spend Hit Dice: roll `1d<hitdie> + CON mod` for each die spent.
   - Restores short-rest abilities.
   - The Wizard's *Arcane Recovery* restores one 1st-level slot once per long rest.
+  - The Warlock's pact slots all return.
 - **Long rest**: only in scenes that the quest marks `rest: "long"`, such as an inn or a safe
   camp. Restores full HP, all slots and all abilities, plus half of your maximum Hit Dice.
 
@@ -219,6 +227,10 @@ starting gear.
 | Wizard | Glass cannon, area damage | INT, DEX | d6 | INT, WIS | Arcana, History, Investigation |
 | Cleric | Healer, radiant damage, undead-breaker | WIS, STR | d8 | WIS, CHA | Medicine, Insight, Persuasion, History |
 | Ranger | Archer, tracker | DEX, WIS | d10 | STR, DEX | Survival, Perception, Stealth, Athletics |
+| Barbarian | Raging brute, shrugs off blows | STR, CON | d12 | STR, CON | Athletics, Intimidation, Survival, Perception |
+| Monk | Martial artist, flurries of blows | DEX, WIS | d8 | STR, DEX | Acrobatics, Stealth, Insight, Athletics |
+| Sorcerer | Wild innate magic, raw power | CHA, DEX | d6 | CON, CHA | Arcana, Deception, Intimidation, Persuasion |
+| Warlock | Pact caster, eldritch blasts and curses | CHA, DEX | d8 | WIS, CHA | Arcana, Deception, Intimidation, Investigation |
 
 \* Expertise: double proficiency.
 
@@ -322,6 +334,57 @@ starting gear.
 | Hunter's Mark (1st) | Bonus, uses a slot | `marked`: +`1d6` damage on each of your hits against that target for the combat. Can be moved as a bonus action when the target falls |
 | Cure Wounds (1st) | Action, uses a slot | Heal `1d8+WIS` |
 | Natural Explorer | Passive | Advantage on Survival checks. Extra Attack at L5 |
+
+### Barbarian
+
+- **Level-1 resources:** Rage ×2 per long rest. **Unarmoured Defence:** AC 10 + DEX + CON with no armour.
+- **Starting kit:** greataxe, explorer's pack, 1× Potion of Healing, 10 gp.
+
+| Ability | Type | Dice / effect |
+|---|---|---|
+| Greataxe | Action | `1d20+STR+prof` to hit, `1d12+STR` slashing |
+| Rage | Bonus, uses Rage | Gain `raging` for the combat: +2 damage on STR weapon hits, half damage from slashing, piercing and bludgeoning |
+| Reckless Attack | Free | Gain `reckless`: advantage on your attacks, and enemies have advantage against you, until your next turn |
+| Extra Attack (L5) | Passive | The Attack action makes two attacks |
+
+### Monk
+
+- **Resources:** Ki points = level per short rest, from L2. **Unarmoured Defence:** AC 10 + DEX + WIS with no armour.
+- **Starting kit:** shortsword, explorer's pack, 2× Potion of Healing, 5 gp.
+
+| Ability | Type | Dice / effect |
+|---|---|---|
+| Shortsword | Action | `1d20+DEX+prof` to hit, `1d6+DEX` piercing |
+| Martial Arts | Bonus, after the Attack action | One unarmed strike: `1d20+DEX+prof` to hit, `1d4+DEX` bludgeoning (`1d6` at L5) |
+| Flurry of Blows (L2) | Bonus, 1 ki, after the Attack action | Two unarmed strikes |
+| Patient Defense (L2) | Bonus, 1 ki | Gain `dodging` until your next turn |
+| Extra Attack (L5) | Passive | The Attack action makes two attacks |
+
+### Sorcerer
+
+- **Level-1 slots:** 2× 1st. **Resources:** Sorcery Points = level per long rest, from L2.
+- **Starting kit:** robes (AC 10+DEX), dagger, arcane focus, 2× Potion of Healing, 10 gp.
+
+| Ability | Type | Dice / effect |
+|---|---|---|
+| Shocking Grasp (cantrip) | Action | Spell attack `1d20+CHA+prof`, `1d8` lightning (`2d8` at L5) |
+| Chaos Bolt (1st) | Action, uses a slot | Spell attack, `2d8+1d6` (+`1d6` per upcast level). The first d8 picks the damage type. If both d8s match, the bolt leaps to an enemy it has not hit yet |
+| Thunderwave (1st) | Action, uses a slot | Every enemy makes a CON save. `2d8` thunder, or half on success |
+| Font of Magic (L2) | Bonus, 2 sorcery points | Regain one spent 1st-level slot |
+| Scorching Ray (2nd, L3) | Action, uses a slot | Three rays, each a spell attack for `2d6` fire. One extra ray per upcast level |
+
+### Warlock
+
+- **Level-1 slots:** 1× pact slot (see §2.8), back on a short rest.
+- **Starting kit:** leather armour (AC 11+DEX), dagger, pact token, 2× Potion of Healing, 10 gp.
+
+| Ability | Type | Dice / effect |
+|---|---|---|
+| Eldritch Blast (cantrip) | Action | Spell attack `1d20+CHA+prof`, `1d10` force. Two beams at L5 |
+| Hex (1st) | Bonus, uses a slot | `hexed`: +`1d6` necrotic on each of your hits against that target for the combat |
+| Arms of Hadar (1st) | Action, uses a slot | Every enemy makes a STR save. `2d6` necrotic (+`1d6` per upcast level), or half on success |
+| Dark One's Blessing | Passive | When you drop an enemy to 0 HP, regain CHA mod + level HP |
+| Agonizing Blast (L2) | Passive | Add CHA mod to Eldritch Blast damage |
 
 **Class data** lives in `src/content/classes.ts`. It is plain typed data: stats, kit, a
 level-progression table and ability IDs. Each ability is an `AbilityDef` record: targeting,
@@ -632,7 +695,7 @@ The layout is mobile-first, single-column below 720 px. Every control is a real 
    picks an empty slot, or confirms an overwrite.
 3. **Character creation.** A four-step wizard with a progress indicator; Back and Next are always
    available.
-   1. *Class*: a grid of eight class cards with icon, role and primary abilities. Selecting a
+   1. *Class*: a grid of twelve class cards with icon, role and primary abilities. Selecting a
       card shows its details: hit die, starting HP/AC/slots, kit, and the ability table with dice.
    2. *Abilities*: a method toggle (4d6 drop lowest / standard array) and a **Re-roll** button.
       There are six rows, each showing the ability, score, modifier and dice (`[6, 5, 3, ~~1~~] = 14`),

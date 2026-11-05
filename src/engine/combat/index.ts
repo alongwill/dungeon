@@ -9,6 +9,7 @@ import { abilityMod, abilityName, computeAC, proficiencyBonus, slotsFor } from '
 import { findItem, healHero, heroSave } from '../quest/eval';
 import type {
   AbilityId,
+  ConditionName,
   DamageType,
   EncounterScene,
   EnemyDef,
@@ -29,7 +30,9 @@ export function heroAC(s: GameState): number {
   const hero = s.hero!;
   const armourItem = hero.equipment.armour ? ITEMS[hero.equipment.armour] : undefined;
   const armour = armourItem?.kind === 'armour' ? armourItem.armour : undefined;
-  return computeAC(armour, !!hero.equipment.shield, abilityMod(hero.abilities.DEX));
+  const unarmoured = CLASSES[hero.classId].unarmouredDefence;
+  return computeAC(armour, !!hero.equipment.shield, abilityMod(hero.abilities.DEX),
+    unarmoured ? abilityMod(hero.abilities[unarmoured]) : 0);
 }
 
 function hasCond(conds: { name: string }[], name: string): boolean {
@@ -138,7 +141,7 @@ function applyType(amount: number, type: DamageType | undefined, e: CombatEnemy)
 }
 
 function damageEnemy(
-  _s: GameState,
+  s: GameState,
   e: CombatEnemy,
   amount: number,
   type: DamageType | undefined,
@@ -150,8 +153,19 @@ function damageEnemy(
   if (e.hp === 0) {
     e.dead = true;
     events.push({ type: 'narrate', text: `${e.name} is defeated.` });
+    darkOnesBlessing(s, events);
   }
   firePhases(e, events);
+}
+
+/** Warlock (Fiend): regain CHA mod + level health on a kill. */
+function darkOnesBlessing(s: GameState, events: GameEvent[]): void {
+  const hero = s.hero!;
+  if (!CLASSES[hero.classId].abilities.includes('dark-ones-blessing')) return;
+  const amount = Math.max(1, abilityMod(hero.abilities.CHA) + hero.level);
+  if (hero.hp >= hero.maxHp) return;
+  events.push({ type: 'narrate', text: `Dark One's Blessing: ${hero.name} drinks in the fallen foe's vigour.` });
+  healHero(s, amount, events);
 }
 
 function firePhases(e: CombatEnemy, events: GameEvent[]): void {
@@ -174,6 +188,9 @@ function damageHero(
 ): void {
   const hero = s.hero!;
   const combat = s.combat!;
+  // Rage: half damage from weapon-type blows
+  if (heroCond(hero, 'raging') && (type === 'slashing' || type === 'piercing' || type === 'bludgeoning'))
+    amount = Math.floor(amount / 2);
   // Uncanny Dodge: halve first hit each round (rogue L5)
   if (
     hero.classId === 'rogue' &&
@@ -328,6 +345,9 @@ export function startCombat(
   advance(s, events);
 }
 
+/** Hero conditions removed at the start of the hero's next turn rather than ticked down. */
+const UNTIL_NEXT_TURN: ConditionName[] = ['dodging', 'reckless'];
+
 function freshHeroTurn(): HeroTurn {
   return { actionUsed: false, bonusUsed: false, extraAction: false, sneakUsed: false, attacked: false };
 }
@@ -336,10 +356,11 @@ function beginHeroTurn(s: GameState, events: GameEvent[]): void {
   const combat = s.combat!;
   const hero = s.hero!;
   combat.heroTurn = freshHeroTurn();
-  // 'dodging' lasts until the start of the hero's next turn
-  if (heroCond(hero, 'dodging')) {
-    hero.conditions = hero.conditions.filter((c) => c.name !== 'dodging');
-    events.push({ type: 'condition', target: 'hero', condition: 'dodging', on: false });
+  // 'dodging' and 'reckless' last until the start of the hero's next turn
+  for (const name of UNTIL_NEXT_TURN) {
+    if (!heroCond(hero, name)) continue;
+    hero.conditions = hero.conditions.filter((c) => c.name !== name);
+    events.push({ type: 'condition', target: 'hero', condition: name, on: false });
   }
   events.push({ type: 'turnStart', who: 'hero', actor: 'hero' });
 }
@@ -385,6 +406,7 @@ function heroAttackMods(s: GameState, target: CombatEnemy): AttackMods {
   const combat = s.combat!;
   let advantage =
     heroCond(hero, 'hidden') ||
+    heroCond(hero, 'reckless') ||
     enemyCond(target, 'restrained') ||
     combat.guidingBoltTarget === target.id;
   let disadvantage =
@@ -432,7 +454,10 @@ function heroWeaponAttack(
   const dmg = rollEvent(s, events, {
     actor: 'hero', actorName: hero.name, purpose: 'damage', expr: diceOnly,
     critical: crit, source: wild ? 'Bite' : weapon?.name ?? 'strike', targetName: target.name,
-    parts: flatBonus ? [{ label: abilityName(atkAbility === 'attack' ? 'STR' : atkAbility), value: flatBonus }] : [],
+    parts: [
+      ...(flatBonus ? [{ label: abilityName(atkAbility === 'attack' ? 'STR' : atkAbility), value: flatBonus }] : []),
+      ...(!wild && atkAbility === 'STR' && heroCond(hero, 'raging') ? [{ label: 'Rage', value: 2 }] : []),
+    ],
     label: crit ? 'Damage (critical!)' : 'Damage',
   });
   let total = dmg.total;
@@ -472,7 +497,38 @@ function heroWeaponAttack(
 
   damageEnemy(s, target, total, dmgType, events);
   if (smiteTotal > 0) damageEnemy(s, target, smiteTotal, 'radiant', events);
+  hexRider(s, target, crit, events);
   checkVictory(s, events);
+}
+
+/** Hex: +1d6 necrotic on each hero hit against the hexed target. */
+function hexRider(s: GameState, target: CombatEnemy, crit: boolean, events: GameEvent[]): void {
+  if (target.dead || !enemyCond(target, 'hexed')) return;
+  const hero = s.hero!;
+  const hx = rollEvent(s, events, { actor: 'hero', actorName: hero.name, purpose: 'damage', expr: '1d6', critical: crit, source: 'Hex', targetName: target.name, label: 'Hex' });
+  damageEnemy(s, target, hx.total, 'necrotic', events);
+}
+
+/** First living enemy, preferring the given one; for multi-hit effects whose target falls. */
+function nextTarget(s: GameState, preferred: CombatEnemy): CombatEnemy | undefined {
+  if (!preferred.dead && !preferred.fled) return preferred;
+  return s.combat!.enemies.find((e) => !e.dead && !e.fled);
+}
+
+/** Monk unarmed strike: DEX attack, martial-arts die + DEX bludgeoning. */
+function unarmedStrike(s: GameState, target: CombatEnemy, events: GameEvent[]): void {
+  const hero = s.hero!;
+  const atk = heroAttackRoll(s, target, 'DEX', 'Unarmed strike', events);
+  if (!atk.hit) return;
+  const dex = abilityMod(hero.abilities.DEX);
+  const dmg = rollEvent(s, events, {
+    actor: 'hero', actorName: hero.name, purpose: 'damage', expr: hero.level >= 5 ? '1d6' : '1d4',
+    critical: atk.crit, source: 'Unarmed strike', targetName: target.name,
+    parts: dex ? [{ label: 'Dexterity', value: dex }] : [],
+    label: atk.crit ? 'Damage (critical!)' : 'Damage',
+  });
+  damageEnemy(s, target, dmg.total, 'bludgeoning', events);
+  hexRider(s, target, atk.crit, events);
 }
 
 // ---------- enemy turns ----------
@@ -480,7 +536,7 @@ function heroWeaponAttack(
 function enemyAttack(s: GameState, e: CombatEnemy, act: EnemyDef['actions'][number], events: GameEvent[]): void {
   const hero = s.hero!;
   const dis = enemyCond(e, 'restrained') || enemyCond(e, 'frightened') || enemyCond(e, 'poisoned') || heroCond(hero, 'dodging');
-  const adv = heroCond(hero, 'restrained');
+  const adv = heroCond(hero, 'restrained') || heroCond(hero, 'reckless');
   const ac = heroAC(s);
   const r = rollEvent(s, events, {
     actor: e.id, actorName: e.name, purpose: 'attack', expr: '1d20',
@@ -573,21 +629,33 @@ export function usableBonusActions(s: GameState): AbilityDef[] {
   if (!hero || !combat || !combat.heroTurn || combat.heroTurn.bonusUsed) return [];
   return CLASSES[hero.classId].abilities
     .map((id) => ABILITIES[id]!)
-    .filter((a) => a && a.minLevel <= hero.level && a.kind === 'bonus' && canPayCost(s, a));
+    .filter((a) => a && a.minLevel <= hero.level && a.kind === 'bonus' && canPayCost(s, a) &&
+      (!needsAttackFirst(a) || combat.heroTurn!.attacked));
+}
+
+/** Martial Arts and Flurry of Blows follow the Attack action. */
+export const needsAttackFirst = (a: AbilityDef): boolean =>
+  a.special === 'martial-arts' || a.special === 'flurry';
+
+/** Lowest slot level ≥ min with a slot left, or undefined. */
+export function lowestFreeSlot(hero: Hero, min: number): number | undefined {
+  const max = slotsMaxFor(hero);
+  for (let l = min; l <= max.length; l++) {
+    if ((hero.slotsUsed[l - 1] ?? 0) < (max[l - 1] ?? 0)) return l;
+  }
+  return undefined;
 }
 
 export function canPayCost(s: GameState, a: AbilityDef): boolean {
   const hero = s.hero!;
   if (a.slot !== undefined) {
     if (heroCond(hero, 'wildshape')) return false;
-    const idx = a.slot - 1;
-    if (idx >= hero.slotsUsed.length) return false;
-    const max = slotsMaxFor(hero)[idx] ?? 0;
-    if ((hero.slotsUsed[idx] ?? 0) >= max) return false;
+    if (lowestFreeSlot(hero, a.slot) === undefined) return false;
   }
   if (a.resource !== undefined) {
-    if ((hero.resources[a.resource] ?? 0) <= 0) return false;
+    if ((hero.resources[a.resource] ?? 0) < (a.resourceCost ?? 1)) return false;
   }
+  if (a.special === 'font-of-magic' && (hero.slotsUsed[0] ?? 0) <= 0) return false;
   return true;
 }
 
@@ -605,10 +673,7 @@ export function heroAttackAction(
   const t = combat.enemies.find((e) => e.id === targetId && !e.dead && !e.fled);
   if (!t) return false;
 
-  const attacks = hero.level >= 5 &&
-    ((hero.classId === 'fighter' && CLASSES.fighter.abilities.includes('extra-attack')) ||
-     (hero.classId === 'ranger' && CLASSES.ranger.abilities.includes('extra-attack-ranger')))
-    ? 2 : 1;
+  const attacks = hero.level >= 5 && hasExtraAttack(hero) ? 2 : 1;
   for (let i = 0; i < attacks; i++) {
     if (combat.result || t.dead) break;
     heroWeaponAttack(s, t, { smiteSlot: i === 0 ? smiteSlot : undefined }, events, quest);
@@ -616,6 +681,10 @@ export function heroAttackAction(
   combat.heroTurn!.attacked = true;
   return true;
 }
+
+const EXTRA_ATTACK_IDS = ['extra-attack', 'extra-attack-ranger', 'extra-attack-barbarian', 'extra-attack-monk'];
+const hasExtraAttack = (hero: Hero): boolean =>
+  CLASSES[hero.classId].abilities.some((id) => EXTRA_ATTACK_IDS.includes(id) && ABILITIES[id]!.minLevel <= hero.level);
 
 // ---------- ability use ----------
 
@@ -636,15 +705,23 @@ export function heroUseAbility(
   if (def.slot !== undefined && heroCond(hero, 'wildshape'))
     return { ok: false, cost: 'none', error: 'cannot cast while wild-shaped' };
 
-  const lvl = slotLevel ?? def.slot ?? 0;
+  const lvl = slotLevel ?? (def.slot !== undefined ? lowestFreeSlot(hero, def.slot) ?? def.slot : 0);
   if (def.slot !== undefined) {
     const idx = lvl - 1;
     const max = slotsMaxFor(hero)[idx] ?? 0;
     if (lvl < def.slot || idx >= hero.slotsUsed.length || (hero.slotsUsed[idx] ?? 0) >= max)
       return { ok: false, cost: 'none', error: 'no slot available' };
   }
-  if (def.resource !== undefined && (hero.resources[def.resource] ?? 0) <= 0)
+  if (def.resource !== undefined && (hero.resources[def.resource] ?? 0) < (def.resourceCost ?? 1))
     return { ok: false, cost: 'none', error: 'no uses left' };
+  if (needsAttackFirst(def) && !combat.heroTurn?.attacked)
+    return { ok: false, cost: 'none', error: 'take the Attack action first' };
+  if (def.special === 'reckless' && heroCond(hero, 'reckless'))
+    return { ok: false, cost: 'none', error: 'already reckless' };
+  if (def.special === 'rage' && heroCond(hero, 'raging'))
+    return { ok: false, cost: 'none', error: 'already raging' };
+  if (def.special === 'font-of-magic' && (hero.slotsUsed[0] ?? 0) <= 0)
+    return { ok: false, cost: 'none', error: 'no spent 1st-level slot to restore' };
 
   const targets = ((): CombatEnemy[] => {
     if (def.target === 'all-enemies') return combat.enemies.filter((e) => !e.dead && !e.fled);
@@ -659,7 +736,7 @@ export function heroUseAbility(
 
   // pay costs
   if (def.slot !== undefined) hero.slotsUsed[lvl - 1]!++;
-  if (def.resource !== undefined && def.special !== 'lay-on-hands') hero.resources[def.resource]!--;
+  if (def.resource !== undefined && def.special !== 'lay-on-hands') hero.resources[def.resource]! -= def.resourceCost ?? 1;
 
   // resolve
   resolveAbility(s, def, targets, lvl, amount, events);
@@ -755,6 +832,101 @@ function resolveAbility(
       hero.conditions.push({ name: 'inspired', rounds: 'combat' });
       events.push({ type: 'condition', target: 'hero', condition: 'inspired', on: true });
       return;
+    case 'hex': {
+      const t = targets[0]!;
+      for (const e of combat.enemies) e.conditions = e.conditions.filter((c) => c.name !== 'hexed');
+      t.conditions.push({ name: 'hexed', rounds: 'combat' });
+      events.push({ type: 'condition', target: t.id, condition: 'hexed', on: true });
+      return;
+    }
+    case 'rage':
+      hero.conditions.push({ name: 'raging', rounds: 'combat' });
+      events.push({ type: 'condition', target: 'hero', condition: 'raging', on: true });
+      events.push({ type: 'narrate', text: `${hero.name} flies into a rage!` });
+      return;
+    case 'reckless':
+      hero.conditions.push({ name: 'reckless', rounds: 'combat' });
+      events.push({ type: 'condition', target: 'hero', condition: 'reckless', on: true });
+      return;
+    case 'martial-arts':
+    case 'flurry': {
+      const strikes = def.special === 'flurry' ? 2 : 1;
+      for (let i = 0; i < strikes; i++) {
+        const t = nextTarget(s, targets[0]!);
+        if (!t || combat.result) break;
+        unarmedStrike(s, t, events);
+        checkVictory(s, events);
+      }
+      return;
+    }
+    case 'font-of-magic':
+      hero.slotsUsed[0]!--;
+      events.push({ type: 'narrate', text: `${hero.name} shapes raw sorcery into a 1st-level slot.` });
+      return;
+    case 'eldritch-blast': {
+      const beams = hero.level >= 5 ? 2 : 1;
+      const agonizing = CLASSES[hero.classId].abilities.includes('agonizing-blast') &&
+        ABILITIES['agonizing-blast']!.minLevel <= hero.level;
+      const cha = abilityMod(hero.abilities.CHA);
+      for (let i = 0; i < beams; i++) {
+        const t = nextTarget(s, targets[0]!);
+        if (!t || combat.result) break;
+        const atk = heroAttackRoll(s, t, 'CHA', beams > 1 ? `${def.name} beam ${i + 1}` : def.name, events);
+        if (!atk.hit) continue;
+        const dmg = rollEvent(s, events, {
+          actor: 'hero', actorName: hero.name, purpose: 'damage', expr: def.damage!,
+          critical: atk.crit, source: def.name, targetName: t.name, label: 'Damage',
+          parts: agonizing && cha ? [{ label: 'Agonizing Blast', value: cha }] : [],
+        });
+        damageEnemy(s, t, dmg.total, def.damageType, events);
+        hexRider(s, t, atk.crit, events);
+        checkVictory(s, events);
+      }
+      return;
+    }
+    case 'scorching-ray': {
+      const rays = 3 + (lvl - (def.slot ?? 2));
+      for (let i = 0; i < rays; i++) {
+        const t = nextTarget(s, targets[0]!);
+        if (!t || combat.result) break;
+        const atk = heroAttackRoll(s, t, 'CHA', `${def.name} ray ${i + 1}`, events);
+        if (!atk.hit) continue;
+        const dmg = rollEvent(s, events, {
+          actor: 'hero', actorName: hero.name, purpose: 'damage', expr: def.damage!,
+          critical: atk.crit, source: def.name, targetName: t.name, label: 'Damage',
+        });
+        damageEnemy(s, t, dmg.total, def.damageType, events);
+        hexRider(s, t, atk.crit, events);
+        checkVictory(s, events);
+      }
+      return;
+    }
+    case 'chaos-bolt': {
+      const expr = upcastDice(def.damage!, def.upcast?.dice, lvl, def.slot ?? 1);
+      let t: CombatEnemy | undefined = targets[0]!;
+      const struck = new Set<string>();
+      while (t && !combat.result) {
+        struck.add(t.id);
+        const atk = heroAttackRoll(s, t, 'CHA', def.name, events);
+        if (!atk.hit) break;
+        const dmg = rollEvent(s, events, {
+          actor: 'hero', actorName: hero.name, purpose: 'damage', expr,
+          critical: atk.crit, source: def.name, targetName: t.name, label: 'Damage',
+        });
+        const d8s = dmg.result.rolls.filter((d) => d.sides === 8 && d.kept).map((d) => d.value);
+        const type = CHAOS_TYPES[(d8s[0] ?? 1) - 1]!;
+        events.push({ type: 'narrate', text: `The bolt crackles with ${type} energy.` });
+        damageEnemy(s, t, dmg.total, type, events);
+        hexRider(s, t, atk.crit, events);
+        checkVictory(s, events);
+        // matching d8s: the bolt leaps to an enemy it has not struck yet
+        t = d8s.length >= 2 && d8s[0] === d8s[1]
+          ? combat.enemies.find((e) => !e.dead && !e.fled && !struck.has(e.id))
+          : undefined;
+        if (t) events.push({ type: 'narrate', text: `Chaos Bolt leaps to ${t.name}!` });
+      }
+      return;
+    }
     case 'magic-missile': {
       const darts = 3 + (lvl - (def.slot ?? 1));
       for (let i = 0; i < darts; i++) {
@@ -791,6 +963,7 @@ function resolveAbility(
         damageEnemy(s, t, dmg.total, def.damageType, events);
       }
       if (def.id === 'guiding-bolt') combat.guidingBoltTarget = t.id;
+      hexRider(s, t, atk.crit, events);
     } else if (def.save) {
       const saved = enemySaveRoll(s, t, def.save.ability, saveDC, events, def.name);
       if (dmgExpr) {
@@ -824,6 +997,9 @@ function resolveAbility(
   }
   checkVictory(s, events);
 }
+
+/** Chaos Bolt damage type, indexed by the first d8 (1–8). */
+const CHAOS_TYPES: DamageType[] = ['acid', 'cold', 'fire', 'force', 'lightning', 'poison', 'psychic', 'thunder'];
 
 function enemySaveRoll(s: GameState, e: CombatEnemy, ability: AbilityId, dc: number, events: GameEvent[], source?: string): boolean {
   const bonus = e.saves[ability] ?? 0;
@@ -865,10 +1041,11 @@ export function endHeroTurn(s: GameState, events: GameEvent[]): void {
   const combat = s.combat!;
   combat.heroTurn = null;
   // hero's numeric durations decrement at the END of the hero turn; 'dodging'
-  // is exempt — it's removed at the START of the next hero turn instead
-  endOfTurnTick(s.hero!.conditions.filter((c) => c.name !== 'dodging'));
+  // and 'reckless' are exempt — they're removed at the START of the next hero turn
+  const exempt = (c: { name: ConditionName }) => UNTIL_NEXT_TURN.includes(c.name);
+  endOfTurnTick(s.hero!.conditions.filter((c) => !exempt(c)));
   s.hero!.conditions = s.hero!.conditions.filter(
-    (c) => c.name === 'dodging' || typeof c.rounds !== 'number' || c.rounds > 0,
+    (c) => exempt(c) || typeof c.rounds !== 'number' || c.rounds > 0,
   );
   combat.turnIndex++;
   advance(s, events);

@@ -175,6 +175,22 @@ function Garb({ frame, colour }: { frame: string; colour: string }) {
         <path d="M30 61 Q40 70 50 61" fill={light} opacity="0.5" />
         {frame === 'ranger' && <path d="M20 84 L56 61" stroke="#6a4a2a" stroke-width="3" />}
       </g>);
+    case 'barbarian':
+      return (<g>{body}
+        <path d="M14 70 Q12 60 24 58 Q40 64 56 58 Q68 60 66 70 Q56 64 40 70 Q24 64 14 70 Z" fill="#8a6a44" />
+        <path d="M20 64 l2 4 M28 62 l1 4 M52 62 l-1 4 M60 64 l-2 4" stroke="#5a4426" stroke-width="1.5" />
+      </g>);
+    case 'monk':
+      return (<g>{body}
+        <path d="M30 61 L50 84 M50 61 L30 84" stroke={light} stroke-width="3" opacity="0.6" />
+        <path d="M14 78 H66" stroke="#3a2a1c" stroke-width="4" />
+      </g>);
+    case 'sorcerer':
+    case 'warlock':
+      return (<g>{body}
+        <path d="M28 61 L40 76 L52 61" fill={dark} />
+        <circle cx="40" cy="70" r="2.6" fill={frame === 'warlock' ? '#7ac04a' : '#f3703a'} />
+      </g>);
     case 'wizard':
       return (<g>{body}
         <path d="M28 61 L40 78 L52 61" fill={light} />

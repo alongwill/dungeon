@@ -40,6 +40,10 @@ export const FRAME_COLOURS: Record<ClassId | 'npc' | 'enemy', string> = {
   wizard: '#2e4a8c',
   cleric: '#a8a29a',
   ranger: '#4a5d23',
+  barbarian: '#9a4a1c',
+  monk: '#c07a2a',
+  sorcerer: '#a8324a',
+  warlock: '#4a2a6a',
   npc: '#6b5a44',
   enemy: '#5a2e2e',
 };

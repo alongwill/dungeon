@@ -76,6 +76,38 @@ const ICONS: Record<ClassId, JSX.Element> = {
       <path d="M14 32 L10 28 M14 32 L10 36 M17 32 L13 28 M17 32 L13 36" stroke="#4a7a3a" stroke-width="2" stroke-linecap="round" />
     </g>
   ),
+  barbarian: (
+    <g>
+      <path d="M31 10 L35 10 L35 56 L31 56 Z" fill="#6a4426" />
+      <path d="M35 14 C48 12 54 22 52 34 C46 30 40 28 35 30 Z" fill="#d8dce4" />
+      <path d="M31 14 C18 12 12 22 14 34 C20 30 26 28 31 30 Z" fill="#b8bcc4" />
+      <path d="M52 34 C46 30 40 28 35 30 L35 27 C40 25 46 27 51 30 Z" fill="#8a8e96" />
+      <path d="M30 44 H36 M30 48 H36" stroke="#c9a227" stroke-width="1.5" />
+    </g>
+  ),
+  monk: (
+    <g>
+      <path d="M22 50 Q20 34 26 26 Q30 20 36 22 Q44 22 44 30 L44 44 Q44 52 36 52 L28 52 Q22 52 22 50 Z" fill="#e8c8a0" />
+      <path d="M26 26 Q30 20 36 22 M30 24 V34 M36 23 V34 M42 26 V36" stroke="#a8784a" stroke-width="1.5" fill="none" />
+      <path d="M22 50 L44 50" stroke="#c07a2a" stroke-width="4" stroke-linecap="round" />
+      <path d="M48 18 q4 4 0 8 M52 14 q6 8 0 16" stroke="#f3d27a" stroke-width="1.6" fill="none" stroke-linecap="round" />
+    </g>
+  ),
+  sorcerer: (
+    <g>
+      <path d="M32 8 C40 20 48 26 46 40 C44 50 38 54 32 54 C26 54 20 50 18 40 C16 28 26 24 28 14 C30 22 34 24 32 8 Z" fill="#e8503a" />
+      <path d="M32 24 C36 32 42 36 40 44 C38 50 26 50 24 44 C22 38 28 34 32 24 Z" fill="#f3a03a" />
+      <path d="M32 36 C34 40 36 42 35 46 C34 49 30 49 29 46 C28 43 31 40 32 36 Z" fill="#fff4c8" />
+    </g>
+  ),
+  warlock: (
+    <g>
+      <path d="M12 32 Q32 12 52 32 Q32 52 12 32 Z" fill="#2a1a3a" stroke="#a87ad8" stroke-width="2" />
+      <circle cx="32" cy="32" r="9" fill="#7ac04a" />
+      <ellipse cx="32" cy="32" rx="2.5" ry="8" fill="#12160c" />
+      <path d="M20 16 L24 22 M44 16 L40 22 M32 10 V16" stroke="#a87ad8" stroke-width="2" stroke-linecap="round" />
+    </g>
+  ),
 };
 
 export function ClassEmblem({ classId, size = 44 }: { classId: ClassId; size?: number }) {

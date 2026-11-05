@@ -5,7 +5,7 @@ interface Active { t0: number; dur: number; obj: THREE.Object3D; tick: (k: numbe
 
 const DAMAGE_COLOURS: Record<string, number> = {
   fire: 0xff7a2a, radiant: 0xffd94a, psychic: 0xa86af0, force: 0x5a9af0,
-  cold: 0x9ad8f0, poison: 0x7ac04a, lightning: 0xf0e05a,
+  cold: 0x9ad8f0, poison: 0x7ac04a, lightning: 0xf0e05a, thunder: 0xc8d0f0, acid: 0x9af04a, necrotic: 0x6a8a5a,
 };
 const burstColour = (t?: string) => DAMAGE_COLOURS[t ?? ''] ?? 0xe8e0d0;
 

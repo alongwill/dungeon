@@ -3,6 +3,8 @@ import { step } from '../src/engine/state';
 import type { Action, GameEvent, GameState } from '../src/engine/model';
 import type { Quest } from '../src/engine/quest/types';
 import { combatQuest, ctxOf, makeHero, newGame, startQuest } from './helpers';
+import { deriveStats } from '../src/engine/character';
+import { slotsFor } from '../src/engine/rules';
 
 function enterCombat(
   hero = makeHero('fighter'),
@@ -209,6 +211,132 @@ describe('class abilities in combat', () => {
     expect(r1.state.combat!.enemies[0]!.conditions.some((c) => c.name === 'marked')).toBe(true);
     const r2 = act(r1.state, { type: 'attack', targetId: 'gobbo-1' }, q);
     expect(r2.events.some((e) => e.type === 'roll' && e.label === "Hunter's Mark")).toBe(true);
+  });
+});
+
+describe('new classes', () => {
+  const tough = () => combatQuest({ hp: '40d6' });
+  const heroTurn = (q: Quest, hero: ReturnType<typeof makeHero>) =>
+    enterCombat(hero, q, findSeed((s) => s.combat!.heroTurn !== null, q, hero)).state;
+
+  it('Barbarian: Unarmoured Defence adds CON to AC; Rage adds +2 damage and halves weapon damage', () => {
+    const q = combatQuest({ hp: '40d6', ac: 1, actions: [{ name: 'Club', attack: 30, damage: '2d2+6', type: 'bludgeoning' }] });
+    const barb = makeHero('barbarian');
+    // standard array: DEX 13 (+1), CON 14 (+2) → 10 + 1 + 2
+    expect(deriveStats('barbarian', barb.abilities, 1).ac).toBe(13);
+    const state = heroTurn(q, barb);
+    const r1 = act(state, { type: 'useAbility', abilityId: 'rage' }, q);
+    expect(r1.state.hero!.conditions.some((c) => c.name === 'raging')).toBe(true);
+    expect(r1.state.hero!.resources['rage']).toBe(1);
+    const r2 = act(r1.state, { type: 'attack', targetId: 'gobbo-1' }, q);
+    const dmg = r2.events.find((e) => e.type === 'roll' && e.purpose === 'damage' && e.source === 'Greataxe');
+    expect(dmg?.type === 'roll' && dmg.parts.some((p) => p.label === 'Rage' && p.value === 2)).toBe(true);
+    const hits = r2.events.filter((e) => e.type === 'damage' && e.target === 'hero');
+    expect(hits.length).toBeGreaterThan(0);
+    // every blow lands at half its rolled damage
+    const enemyRolls = r2.events.filter((e) => e.type === 'roll' && e.actor === 'gobbo-1' && e.purpose === 'damage');
+    hits.forEach((h, i) => {
+      const roll = enemyRolls[i];
+      if (h.type === 'damage' && roll?.type === 'roll') expect(h.amount).toBe(Math.floor(roll.finalTotal / 2));
+    });
+  });
+
+  it('Barbarian: Reckless Attack gives advantage, and enemies get advantage back', () => {
+    const q = combatQuest({ hp: '40d6', actions: [{ name: 'Poke', attack: 0, damage: '1d2', type: 'piercing' }] });
+    const state = heroTurn(q, makeHero('barbarian'));
+    const r1 = act(state, { type: 'useAbility', abilityId: 'reckless-attack' }, q);
+    expect(r1.state.combat!.heroTurn).not.toBeNull(); // free: turn continues
+    const r2 = act(r1.state, { type: 'attack', targetId: 'gobbo-1' }, q);
+    const heroAtk = r2.events.find((e) => e.type === 'roll' && e.actor === 'hero' && e.purpose === 'attack');
+    expect(heroAtk?.type === 'roll' && heroAtk.result.rolls.length).toBe(2);
+    const r3 = act(r2.state, { type: 'endTurn' }, q);
+    const enemyAtk = r3.events.find((e) => e.type === 'roll' && e.actor === 'gobbo-1' && e.purpose === 'attack');
+    expect(enemyAtk?.type === 'roll' && enemyAtk.result.rolls.length).toBe(2);
+    // reckless ends when the hero's next turn starts
+    expect(r3.state.hero!.conditions.some((c) => c.name === 'reckless')).toBe(false);
+  });
+
+  it('Monk: Martial Arts needs the Attack action first; Flurry spends ki for two strikes', () => {
+    const q = tough();
+    const monk = makeHero('monk');
+    monk.level = 2;
+    monk.resources['ki'] = 2;
+    // standard array: DEX 15 (+2), WIS 14 (+2) → 10 + 2 + 2
+    expect(deriveStats('monk', monk.abilities, 1).ac).toBe(14);
+    const state = heroTurn(q, monk);
+    const early = act(state, { type: 'useAbility', abilityId: 'martial-arts', targetId: 'gobbo-1' }, q);
+    expect(early.events.some((e) => e.type === 'error' && /Attack action first/.test(e.message))).toBe(true);
+    const r1 = act(state, { type: 'attack', targetId: 'gobbo-1' }, q);
+    expect(r1.state.combat!.heroTurn).not.toBeNull(); // bonus still open
+    const r2 = act(r1.state, { type: 'useAbility', abilityId: 'flurry-of-blows', targetId: 'gobbo-1' }, q);
+    const strikes = r2.events.filter((e) => e.type === 'roll' && e.purpose === 'attack' && e.source === 'Unarmed strike');
+    expect(strikes).toHaveLength(2);
+    expect(r2.state.hero!.resources['ki']).toBe(1);
+  });
+
+  it('Sorcerer: Font of Magic turns 2 sorcery points into a spent 1st-level slot', () => {
+    const q = tough();
+    const sorc = makeHero('sorcerer');
+    sorc.level = 2;
+    sorc.slotsUsed = [1];
+    sorc.resources['sorcery-points'] = 2;
+    const r = act(heroTurn(q, sorc), { type: 'useAbility', abilityId: 'font-of-magic' }, q);
+    expect(r.state.hero!.slotsUsed[0]).toBe(0);
+    expect(r.state.hero!.resources['sorcery-points']).toBe(0);
+  });
+
+  it('Sorcerer: Scorching Ray fires three rays from a 2nd-level slot', () => {
+    const q = tough();
+    const sorc = makeHero('sorcerer');
+    sorc.level = 3;
+    sorc.slotsUsed = [0, 0];
+    const r = act(heroTurn(q, sorc), { type: 'useAbility', abilityId: 'scorching-ray', targetId: 'gobbo-1', slotLevel: 2 }, q);
+    expect(r.events.filter((e) => e.type === 'roll' && e.purpose === 'attack' && /Scorching Ray/.test(e.source ?? ''))).toHaveLength(3);
+    expect(r.state.hero!.slotsUsed[1]).toBe(1);
+  });
+
+  it('Warlock: pact slots are all one level and return on a short rest; Hex adds 1d6 necrotic', () => {
+    expect(slotsFor('warlock', 1)).toEqual([1]);
+    expect(slotsFor('warlock', 3)).toEqual([0, 2]);
+    expect(slotsFor('warlock', 5)).toEqual([0, 0, 2]);
+    const q = tough();
+    const wl = makeHero('warlock');
+    wl.level = 3;
+    wl.slotsUsed = [0, 0];
+    const seed = findSeed((s) => {
+      if (s.combat!.heroTurn === null) return false;
+      const r1 = step(s, { type: 'useAbility', abilityId: 'hex', targetId: 'gobbo-1' }, ctxOf(q));
+      const r2 = step(r1.state, { type: 'useAbility', abilityId: 'eldritch-blast', targetId: 'gobbo-1' }, ctxOf(q));
+      return r2.events.some((e) => e.type === 'roll' && e.label === 'Hex');
+    }, q, wl, 2000);
+    const { state } = enterCombat(wl, q, seed);
+    const r1 = act(state, { type: 'useAbility', abilityId: 'hex', targetId: 'gobbo-1' }, q);
+    // Hex casts from the only slot level a level-3 warlock has: 2nd
+    expect(r1.state.hero!.slotsUsed).toEqual([0, 1]);
+    const r2 = act(r1.state, { type: 'useAbility', abilityId: 'eldritch-blast', targetId: 'gobbo-1' }, q);
+    expect(r2.events.some((e) => e.type === 'roll' && e.label === 'Hex')).toBe(true);
+    // Agonizing Blast (L2) adds CHA to the blast damage
+    const blast = r2.events.find((e) => e.type === 'roll' && e.purpose === 'damage' && e.source === 'Eldritch Blast');
+    expect(blast?.type === 'roll' && blast.parts.some((p) => p.label === 'Agonizing Blast')).toBe(true);
+
+    const rested = step(newGame({ ...wl, slotsUsed: [0, 2] }), { type: 'rest', kind: 'short' }, ctxOf(null));
+    expect(rested.state.hero!.slotsUsed).toEqual([0, 0]);
+  });
+
+  it("Warlock: Dark One's Blessing heals on a kill", () => {
+    const q = combatQuest({ ac: 1 });
+    const wl = makeHero('warlock');
+    wl.hp = 5;
+    const seed = findSeed((s) => {
+      if (s.combat!.heroTurn === null) return false;
+      const r = step(s, { type: 'useAbility', abilityId: 'eldritch-blast', targetId: 'gobbo-1' }, ctxOf(q));
+      return r.events.some((e) => e.type === 'combatEnd' && e.result === 'victory');
+    }, q, wl);
+    const { state } = enterCombat(wl, q, seed);
+    const hpBefore = state.hero!.hp;
+    const r = act(state, { type: 'useAbility', abilityId: 'eldritch-blast', targetId: 'gobbo-1' }, q);
+    expect(r.events.some((e) => e.type === 'heal')).toBe(true);
+    expect(r.state.hero!.hp).toBeGreaterThan(hpBefore);
   });
 });
 
@@ -429,7 +557,7 @@ describe('roll event invariant', () => {
     r.rolls.reduce((a, d) => a + (d.kept ? d.value : 0), 0);
   it('finalTotal === keptDiceSum + parts for many seeded combats across classes', () => {
     const qq = combatQuest();
-    for (const cls of ['fighter', 'wizard', 'cleric', 'rogue'] as const) {
+    for (const cls of ['fighter', 'wizard', 'cleric', 'rogue', 'barbarian', 'monk', 'sorcerer', 'warlock'] as const) {
       for (let seed = 1; seed <= 8; seed++) {
         const { state } = enterCombat(makeHero(cls), qq, seed);
         const r = act(state, { type: 'attack', targetId: 'gobbo-1' }, qq);
